@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clurb Management</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #121212;
+    --muted: #727272;
+    --faint: #b6b6b6;
+    --hairline: #e2e2e2;
+    --hairline-dark: #121212;
+    --hover: #f7f7f7;
+    --peri: #9a9cde;
+    --peri-dark: #7577c9;
+    --star: #9a9cde;
+    --star-empty: #e4e4ef;
+    --ok: #3e7d4f;
+    --err: #b3261e;
+    --serif: Georgia, 'Times New Roman', Times, serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); padding: 0 24px 80px; }
+
+  .masthead { max-width: 760px; margin: 0 auto; text-align: center; padding-top: 40px; font-family: var(--serif); }
+  .masthead h1 { font-size: clamp(22px, 4vw, 32px); margin: 0 0 6px; letter-spacing: -0.5px; }
+  .masthead .dek { font-family: var(--sans); font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .rule { max-width: 760px; margin: 20px auto 0; border: 0; border-top: 1px solid var(--hairline-dark); }
+  .rule.thin { border-top: 1px solid var(--hairline); margin-top: 3px; margin-bottom: 32px; }
+
+  main { max-width: 760px; margin: 0 auto; }
+  .mockbanner {
+    max-width: 760px; margin: 14px auto 0; font-size: 12px; color: var(--muted);
+    text-align: center; letter-spacing: 0.3px;
+  }
+  .mockbanner b { color: var(--ink); }
+
+  section { border: 1px solid var(--hairline); border-radius: 2px; padding: 24px; margin-bottom: 24px; }
+  h2 {
+    font-family: var(--sans); font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.6px; margin: 0 0 18px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--hairline);
+  }
+  label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .8px; }
+  input, select { width: 100%; padding: 9px 10px; border: 1px solid var(--hairline); border-radius: 2px; font: inherit; background: #fff; color: var(--ink); }
+  input:focus, select:focus { outline: 2px solid var(--peri); outline-offset: -1px; }
+  button.primary {
+    font: inherit; font-weight: 600; padding: 9px 18px; border-radius: 2px; border: none;
+    background: var(--ink); color: #fff; cursor: pointer; margin-top: 16px;
+    text-transform: uppercase; font-size: 12px; letter-spacing: 1px;
+  }
+  button.primary:hover { background: var(--peri-dark); }
+  button.ghost {
+    all: unset; cursor: pointer; color: var(--muted); border: 1px solid var(--hairline);
+    border-radius: 2px; padding: 4px 10px; font-size: 12px;
+  }
+  button.ghost:hover { color: var(--ink); border-color: var(--ink); }
+  button:disabled { opacity: .4; cursor: default; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
+  .msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
+  .topbar { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--muted); }
+  .topbar .spacer { flex: 1; }
+  .topbar a { color: var(--peri-dark); }
+  .hidden { display: none !important; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .hint code { background: var(--hover); padding: 1px 5px; }
+
+  /* ratings editor */
+  .rate-row { display: flex; align-items: center; gap: 12px; padding: 8px 2px; border-bottom: 1px solid var(--hairline); }
+  .rate-row:last-child { border-bottom: none; }
+  .rate-name { flex: 1; min-width: 0; font-size: 14px; }
+  .rate-name .inactive { color: var(--faint); font-size: 12px; }
+  .starpick { display: flex; align-items: center; cursor: pointer; user-select: none; }
+  .starpick span { font-size: 21px; color: var(--star-empty); width: 22px; text-align: center; }
+  .starpick span.full { color: var(--star); }
+  .starpick span.half { background: linear-gradient(90deg, var(--star) 50%, var(--star-empty) 50%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .rate-val { width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+  .saved-dot { width: 14px; font-size: 12px; color: var(--ok); }
+
+  .memberlist { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip { border: 1px solid var(--hairline); border-radius: 999px; padding: 4px 12px; font-size: 13px; display: flex; gap: 10px; align-items: center; }
+  .chip.inactive { opacity: .5; }
+  .chip button { all: unset; cursor: pointer; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .chip button:hover { color: var(--peri-dark); }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <h1>🔑 Clurb Management</h1>
+  <div class="dek">Books · Members · Ratings — writer's desk</div>
+</div>
+<hr class="rule"><hr class="rule thin">
+
+<div class="mockbanner" id="mockbanner" hidden>
+  <b>Preview mode</b> — Supabase isn't configured, so this is placeholder data and changes live only in this tab.
+</div>
+
+<main>
+  <!-- LOGIN (only when Supabase is configured) -->
+  <section id="login-panel" class="hidden">
+    <h2>Sign in</h2>
+    <form id="login-form">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button class="primary" type="submit">Sign in</button>
+      <div class="msg" id="login-msg"></div>
+    </form>
+  </section>
+
+  <div id="admin" class="hidden">
+    <section class="topbar" style="padding:14px 24px">
+      <span id="signed-in-as"></span>
+      <span class="spacer"></span>
+      <a href="index.html">view the public page →</a>
+      <button class="ghost" id="signout">Sign out</button>
+    </section>
+
+    <section>
+      <h2>This month's book</h2>
+      <form id="book-form">
+        <div class="row2">
+          <div><label>Title</label><input id="b-title" required></div>
+          <div><label>Author</label><input id="b-author" required></div>
+        </div>
+        <div class="row2">
+          <div><label>Month read</label><input id="b-month" type="month" required></div>
+          <div><label>Goodreads URL</label><input id="b-goodreads" type="url" placeholder="https://www.goodreads.com/book/…"></div>
+        </div>
+        <label>Cover image URL</label>
+        <input id="b-cover" type="url" placeholder="https://covers.openlibrary.org/b/isbn/9780…-M.jpg">
+        <div class="hint">Open Library serves covers by ISBN: <code>covers.openlibrary.org/b/isbn/&lt;ISBN&gt;-M.jpg</code></div>
+        <button class="primary" type="submit">Add book</button>
+        <div class="msg" id="book-msg"></div>
+      </form>
+    </section>
+
+    <section>
+      <h2>Ratings</h2>
+      <label>Book</label>
+      <select id="r-book"></select>
+      <div id="rate-rows" style="margin-top:16px"></div>
+      <div class="hint">Click a star to set the rating — click the same star again for a half (4 → 3.5). ✕ clears. Every change saves instantly.</div>
+      <div class="msg" id="rate-msg"></div>
+    </section>
+
+    <section>
+      <h2>Members</h2>
+      <form id="member-form" class="row2" style="align-items:end">
+        <div><label>Name</label><input id="m-name" required placeholder="e.g. Priya"></div>
+        <div><button class="primary" type="submit" style="margin-top:0">Add member</button></div>
+      </form>
+      <div class="msg" id="member-msg"></div>
+      <div class="memberlist" id="memberlist"></div>
+      <div class="hint">Inactive members keep their past ratings; they're just sorted last here.</div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js" onerror="void 0"></script>
+<script>
+(async function () {
+  const $ = id => document.getElementById(id);
+  const cfg = window.BOOKCLUB_CONFIG || {};
+  const configured = cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY
+    && !cfg.SUPABASE_URL.includes('YOUR-PROJECT-REF');
+
+  function msg(id, text, ok) {
+    const el = $(id); el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'err');
+    if (ok) setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 3000);
+  }
+  const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ============================================================
+  // Data layer: one interface, two backends (Supabase / in-memory
+  // preview). The UI below doesn't know which one it's talking to.
+  // ============================================================
+  let api;
+
+  if (configured) {
+    const db = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    api = {
+      db,
+      async loadAll() {
+        const [m, b] = await Promise.all([
+          db.from('members').select('*').order('is_active', { ascending: false }).order('name'),
+          db.from('books').select('*').order('month_read', { ascending: false }),
+        ]);
+        if (m.error || b.error) throw (m.error || b.error);
+        return { members: m.data, books: b.data };
+      },
+      async ratingsFor(bookId) {
+        const { data, error } = await db.from('ratings').select('*').eq('book_id', bookId);
+        if (error) throw error; return data;
+      },
+      async addBook(rec)   { const { error } = await db.from('books').insert(rec); if (error) throw error; },
+      async addMember(name){ const { error } = await db.from('members').insert({ name }); if (error) throw error; },
+      async setActive(id, v){ const { error } = await db.from('members').update({ is_active: v }).eq('id', id); if (error) throw error; },
+      async upsert(bookId, memberId, stars) {
+        const { error } = await db.from('ratings').upsert(
+          { book_id: bookId, member_id: memberId, stars }, { onConflict: 'book_id,member_id' });
+        if (error) throw error;
+      },
+      async remove(bookId, memberId) {
+        const { error } = await db.from('ratings').delete().eq('book_id', bookId).eq('member_id', memberId);
+        if (error) throw error;
+      },
+    };
+  } else {
+    // ---------- preview backend: placeholder data, in-memory ----------
+    $('mockbanner').hidden = false;
+    let uid = 0; const nid = () => 'x' + (++uid);
+    const members = ['Dan','Priya','Marcus','Elena','Sofia','James','Aisha','Tom','Grace','Leo','Nina','Omar']
+      .map(n => ({ id: nid(), name: n, is_active: true }));
+    members[7].is_active = false; // one inactive, for the full picture
+    const books = [
+      { id: nid(), title: 'James', author: 'Percival Everett', month_read: '2026-09-01', goodreads_url: '', cover_url: '' },
+      { id: nid(), title: 'The Covenant of Water', author: 'Abraham Verghese', month_read: '2026-08-01', goodreads_url: '', cover_url: '' },
+      { id: nid(), title: 'Sea of Tranquility', author: 'Emily St. John Mandel', month_read: '2026-07-01', goodreads_url: '', cover_url: '' },
+    ];
+    const ratings = [];
+    books.forEach((b, bi) => members.forEach((m, mi) => {
+      if ((bi * 7 + mi * 13 + 5) % 17 < 11)
+        ratings.push({ book_id: b.id, member_id: m.id, stars: 2 + ((bi + mi) % 7) / 2 });
+    }));
+    api = {
+      async loadAll() {
+        return {
+          members: members.slice().sort((a, z) => (z.is_active - a.is_active) || a.name.localeCompare(z.name)),
+          books: books.slice().sort((a, z) => z.month_read.localeCompare(a.month_read)),
+        };
+      },
+      async ratingsFor(bookId) { return ratings.filter(r => r.book_id === bookId); },
+      async addBook(rec)    { books.push({ id: nid(), ...rec }); },
+      async addMember(name) {
+        if (members.some(m => m.name === name)) throw new Error('duplicate key: that name already exists');
+        members.push({ id: nid(), name, is_active: true });
+      },
+      async setActive(id, v){ members.find(m => m.id === id).is_active = v; },
+      async upsert(bookId, memberId, stars) {
+        const r = ratings.find(r => r.book_id === bookId && r.member_id === memberId);
+        if (r) r.stars = stars; else ratings.push({ book_id: bookId, member_id: memberId, stars });
+      },
+      async remove(bookId, memberId) {
+        const i = ratings.findIndex(r => r.book_id === bookId && r.member_id === memberId);
+        if (i >= 0) ratings.splice(i, 1);
+      },
+    };
+  }
+
+  // ============================================================
+  // UI
+  // ============================================================
+  let members = [], books = [], ratings = [];
+
+  async function refreshAuthUI() {
+    if (!configured) { $('admin').classList.remove('hidden'); $('signed-in-as').textContent = 'Preview mode'; $('signout').classList.add('hidden'); await loadAll(); return; }
+    const { data: { session } } = await api.db.auth.getSession();
+    $('login-panel').classList.toggle('hidden', !!session);
+    $('admin').classList.toggle('hidden', !session);
+    if (session) { $('signed-in-as').textContent = 'Signed in as ' + session.user.email; await loadAll(); }
+  }
+
+  $('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const { error } = await api.db.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
+    if (error) return msg('login-msg', error.message, false);
+    await refreshAuthUI();
+  });
+  $('signout').addEventListener('click', async () => { await api.db.auth.signOut(); location.reload(); });
+
+  async function loadAll() {
+    try { ({ members, books } = await api.loadAll()); }
+    catch (e) { return msg('rate-msg', e.message, false); }
+    renderMembers();
+    renderBookSelect();
+    await loadRatings();
+  }
+
+  // ----- books -----
+  $('book-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      await api.addBook({
+        title: $('b-title').value.trim(),
+        author: $('b-author').value.trim(),
+        month_read: $('b-month').value + '-01',
+        goodreads_url: $('b-goodreads').value.trim() || null,
+        cover_url: $('b-cover').value.trim() || null,
+      });
+    } catch (err) { return msg('book-msg', err.message, false); }
+    msg('book-msg', 'Book added ✓', true);
+    e.target.reset();
+    await loadAll();
+  });
+
+  // ----- members -----
+  $('member-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    try { await api.addMember($('m-name').value.trim()); }
+    catch (err) { return msg('member-msg', err.message, false); }
+    msg('member-msg', 'Member added ✓', true);
+    e.target.reset();
+    await loadAll();
+  });
+
+  function renderMembers() {
+    $('memberlist').innerHTML = '';
+    for (const m of members) {
+      const chip = document.createElement('div');
+      chip.className = 'chip' + (m.is_active ? '' : ' inactive');
+      chip.innerHTML = `<span>${escapeHtml(m.name)}</span>`;
+      const toggle = document.createElement('button');
+      toggle.textContent = m.is_active ? 'deactivate' : 'activate';
+      toggle.onclick = async () => {
+        try { await api.setActive(m.id, !m.is_active); } catch (err) { return msg('member-msg', err.message, false); }
+        await loadAll();
+      };
+      chip.appendChild(toggle);
+      $('memberlist').appendChild(chip);
+    }
+  }
+
+  // ----- ratings -----
+  function renderBookSelect() {
+    const sel = $('r-book'); const prev = sel.value;
+    sel.innerHTML = books.map(b =>
+      `<option value="${b.id}">${escapeHtml(b.title)} — ${b.month_read.slice(0, 7)}</option>`).join('');
+    if (prev && books.some(b => b.id === prev)) sel.value = prev;
+  }
+  $('r-book').addEventListener('change', loadRatings);
+
+  async function loadRatings() {
+    const bookId = $('r-book').value;
+    if (!bookId) { $('rate-rows').innerHTML = '<div class="hint">Add a book first.</div>'; return; }
+    try { ratings = await api.ratingsFor(bookId); }
+    catch (e) { return msg('rate-msg', e.message, false); }
+    renderRatingRows();
+  }
+
+  function renderRatingRows() {
+    const bookId = $('r-book').value;
+    const wrapEl = $('rate-rows');
+    wrapEl.innerHTML = '';
+    for (const m of members) {
+      const existing = ratings.find(r => r.member_id === m.id);
+      const stars = existing ? Number(existing.stars) : 0;
+
+      const row = document.createElement('div');
+      row.className = 'rate-row';
+      row.innerHTML = `
+        <div class="rate-name">${escapeHtml(m.name)} ${m.is_active ? '' : '<span class="inactive">(inactive)</span>'}</div>
+        <div class="starpick"></div>
+        <div class="rate-val">${stars ? stars.toFixed(1) : '—'}</div>
+        <button class="ghost" title="Clear rating" ${existing ? '' : 'disabled'}>✕</button>
+        <span class="saved-dot"></span>`;
+
+      const pick = row.querySelector('.starpick');
+      for (let i = 1; i <= 5; i++) {
+        const s = document.createElement('span');
+        s.textContent = '★';
+        if (stars >= i) s.className = 'full';
+        else if (stars >= i - 0.5) s.className = 'half';
+        s.onclick = () => save(m.id, stars === i ? i - 0.5 : i, row);
+        pick.appendChild(s);
+      }
+      row.querySelector('button').onclick = () => clearRating(m.id);
+      wrapEl.appendChild(row);
+    }
+
+    async function save(memberId, stars, row) {
+      const dot = row.querySelector('.saved-dot'); dot.textContent = '…';
+      try { await api.upsert(bookId, memberId, stars); }
+      catch (err) { dot.textContent = ''; return msg('rate-msg', err.message, false); }
+      await loadRatings();
+    }
+    async function clearRating(memberId) {
+      try { await api.remove(bookId, memberId); }
+      catch (err) { return msg('rate-msg', err.message, false); }
+      await loadRatings();
+    }
+  }
+
+  await refreshAuthUI();
+})();
+</script>
+</body>
+</html>

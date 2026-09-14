@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Cultured Peoples of San Francisco Book Clurb</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #121212;
+    --muted: #727272;
+    --faint: #b6b6b6;
+    --hairline: #e2e2e2;
+    --hairline-dark: #121212;
+    --hover: #f7f7f7;
+    --serif: Georgia, 'Times New Roman', Times, serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 var(--serif);
+    padding: 0 24px 80px;
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead { max-width: 1200px; margin: 0 auto; text-align: center; padding-top: 44px; }
+  .masthead h1 {
+    font-size: clamp(26px, 4.5vw, 40px); font-weight: 700; letter-spacing: -0.5px;
+    margin: 0 0 6px;
+  }
+  .masthead .dek {
+    font-family: var(--sans); font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 2px;
+  }
+  .rule {
+    max-width: 1200px; margin: 22px auto 0; border: 0;
+    border-top: 1px solid var(--hairline-dark);
+  }
+  .rule.thin { border-top: 1px solid var(--hairline); margin-top: 3px; }
+
+  /* ---------- primary tabs ---------- */
+  nav.tabs {
+    max-width: 1200px; margin: 0 auto; display: flex; justify-content: center; gap: 40px;
+    font-family: var(--sans); font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px;
+  }
+  nav.tabs button {
+    all: unset; cursor: pointer; padding: 14px 2px 12px; color: var(--muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
+  .tabs-rule { max-width: 1200px; margin: 0 auto 36px; border: 0; border-top: 1px solid var(--hairline); }
+
+  main { max-width: 1200px; margin: 0 auto; }
+  #status { color: var(--muted); font-style: italic; padding: 40px 0; text-align: center; }
+
+  .mockbanner {
+    max-width: 1200px; margin: 16px auto 0; font-family: var(--sans);
+    font-size: 12px; color: var(--muted); text-align: center;
+    letter-spacing: 0.3px;
+  }
+  .mockbanner b { color: var(--ink); }
+
+  /* ---------- shared table ---------- */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  thead th {
+    font-family: var(--sans); font-size: 10.5px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    border-bottom: 1px solid var(--hairline-dark);
+    padding: 0 10px 10px; text-align: left; white-space: nowrap;
+    vertical-align: bottom; background: var(--bg);
+    position: sticky; top: 0; z-index: 2;
+  }
+  th.sortable { cursor: pointer; }
+  th.sortable:hover { color: var(--ink); }
+  th .arrow { font-size: 9px; }
+  tbody td {
+    border-bottom: 1px solid var(--hairline);
+    padding: 14px 10px; vertical-align: middle;
+  }
+  tbody tr:hover td { background: var(--hover); }
+
+  /* ---------- books matrix ---------- */
+  td.bookcell, th.bookcell {
+    position: sticky; left: 0; background: var(--bg); z-index: 1; min-width: 240px; max-width: 300px;
+  }
+  th.bookcell { z-index: 3; }
+  tbody tr:hover td.bookcell { background: var(--hover); }
+  .bookline { display: flex; gap: 12px; align-items: center; }
+  .cover {
+    width: 38px; height: 57px; flex: none; object-fit: cover;
+    background: var(--hairline); box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+  .cover.ph { display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .b-title { font-size: 16px; font-weight: 700; line-height: 1.25; }
+  .b-title a { color: inherit; text-decoration: none; }
+  .b-title a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .b-author { font-family: var(--sans); font-size: 12px; color: var(--muted); margin-top: 2px; }
+  td.month { font-family: var(--sans); font-size: 12px; color: var(--muted); white-space: nowrap; }
+  td.avg { font-family: var(--sans); font-size: 16px; font-weight: 700; text-align: center; }
+  td.avg .of { display: block; font-size: 9.5px; font-weight: 400; color: var(--faint); letter-spacing: 1px; }
+
+  th.mcol {
+    text-align: center; padding: 0 3px 10px;
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    letter-spacing: 0.8px; max-height: 120px;
+  }
+  td.cell {
+    font-family: var(--sans); font-size: 12.5px; text-align: center;
+    min-width: 40px; padding: 14px 4px; font-variant-numeric: tabular-nums;
+  }
+  td.cell.empty { color: var(--faint); }
+
+  /* ✨ 5-star: HOLOGRAPHIC CELL
+     Technique #3 ("Pokemon-style holographic card") from
+     effect-labs.com, always-on, in celestial pinks/blues/lavenders:
+     dark base + color-dodge gradient sweep + fine holo grid. */
+  td.cell.holo {
+    position: relative; overflow: hidden; isolation: isolate;
+    font-weight: 800; color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,.7);
+    background: linear-gradient(135deg, #1a1a2e, #2d2d44);
+  }
+  td.cell.holo .v { position: relative; z-index: 3; }
+
+  /* holographic overlay — lighter pastels, wide bands,
+     slow drift, per-cell phase via --d/--t (set inline) */
+  td.cell.holo::before {
+    content: ""; position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(
+      125deg,
+      #ffc2ec, #b5e8ff, #dcc8ff, #bccdff,
+      #ffc2ec, #b5e8ff, #dcc8ff
+    );
+    background-size: 350% 350%;
+    opacity: 0.75;
+    mix-blend-mode: color-dodge;
+    animation: holoGradient var(--t, 14s) ease-in-out var(--d, 0s) infinite;
+    pointer-events: none;
+  }
+
+  /* holographic grid */
+  td.cell.holo::after {
+    content: ""; position: absolute; inset: 0; z-index: 2;
+    background:
+      repeating-linear-gradient(
+        0deg,
+        transparent, transparent 2px,
+        rgba(255,255,255,0.05) 2px,
+        rgba(255,255,255,0.05) 4px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent, transparent 2px,
+        rgba(255,255,255,0.05) 2px,
+        rgba(255,255,255,0.05) 4px
+      );
+    pointer-events: none;
+  }
+
+  @keyframes holoGradient {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    td.cell.holo::before, td.cell.holo::after { animation: none !important; }
+  }
+
+  .medal { font-size: 17px; display: block; line-height: 1.2; }
+
+  /* ---------- members table ---------- */
+  td.rank { font-family: var(--sans); font-size: 13px; color: var(--muted); width: 48px; white-space: nowrap; }
+  td.m-name { font-size: 17px; font-weight: 700; }
+  td.stat { font-family: var(--sans); font-size: 14px; font-variant-numeric: tabular-nums; }
+  td.stat b { font-size: 16px; }
+  td.stat .of { color: var(--faint); font-size: 12px; }
+  td.range { font-family: var(--sans); font-size: 12px; color: var(--muted); }
+  th.num, td.num { text-align: center; }
+
+  footer {
+    max-width: 1200px; margin: 48px auto 0; color: var(--muted);
+    font-family: var(--sans); font-size: 11.5px; text-align: center;
+    letter-spacing: 0.3px; border-top: 1px solid var(--hairline); padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <h1>🏆 The Cultured Peoples of San Francisco Book Clurb</h1>
+  <div class="dek">What we read, we also discuss.</div>
+</div>
+<hr class="rule"><hr class="rule thin">
+
+<nav class="tabs">
+  <button id="view-books" class="on">Books</button>
+  <button id="view-members">Members</button>
+</nav>
+<hr class="tabs-rule">
+
+<div class="mockbanner" id="mockbanner" hidden>
+  Showing <b>placeholder data</b> — connect config.js to Supabase to go live.
+</div>
+
+<main>
+  <div id="status">Loading…</div>
+  <div class="tablewrap" id="tablewrap"></div>
+</main>
+
+<footer>Ratings out of 5 · Averages count only members who rated that book · Sort books by clicking Month or Avg · Deeper lavender = higher rating · A perfect 5 goes holographic ✨</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js" onerror="void 0"></script>
+<script>
+// ============================================================
+// PLACEHOLDER DATA — used automatically whenever config.js is
+// missing or still has placeholder values.
+// ============================================================
+const MOCK = (() => {
+  const gr = q => 'https://www.goodreads.com/search?q=' + encodeURIComponent(q);
+  const cov = isbn => `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
+  const books = [
+    { id: 'b1',  title: 'Tomorrow, and Tomorrow, and Tomorrow', author: 'Gabrielle Zevin',      month_read: '2025-10-01', cover_url: cov('9780593321201'), goodreads_url: gr('Tomorrow and Tomorrow and Tomorrow Zevin') },
+    { id: 'b2',  title: 'Project Hail Mary',                    author: 'Andy Weir',             month_read: '2025-11-01', cover_url: cov('9780593135204'), goodreads_url: gr('Project Hail Mary') },
+    { id: 'b3',  title: 'Demon Copperhead',                     author: 'Barbara Kingsolver',    month_read: '2025-12-01', cover_url: cov('9780063251922'), goodreads_url: gr('Demon Copperhead') },
+    { id: 'b4',  title: 'Klara and the Sun',                    author: 'Kazuo Ishiguro',        month_read: '2026-01-01', cover_url: cov('9780593318171'), goodreads_url: gr('Klara and the Sun') },
+    { id: 'b5',  title: 'Lessons in Chemistry',                 author: 'Bonnie Garmus',         month_read: '2026-02-01', cover_url: cov('9780385547345'), goodreads_url: gr('Lessons in Chemistry') },
+    { id: 'b6',  title: 'Circe',                                author: 'Madeline Miller',       month_read: '2026-03-01', cover_url: cov('9780316556347'), goodreads_url: gr('Circe Madeline Miller') },
+    { id: 'b7',  title: 'The Midnight Library',                 author: 'Matt Haig',             month_read: '2026-04-01', cover_url: cov('9780525559474'), goodreads_url: gr('The Midnight Library') },
+    { id: 'b8',  title: 'Pachinko',                             author: 'Min Jin Lee',           month_read: '2026-05-01', cover_url: cov('9781455563937'), goodreads_url: gr('Pachinko') },
+    { id: 'b9',  title: 'Braiding Sweetgrass',                  author: 'Robin Wall Kimmerer',   month_read: '2026-06-01', cover_url: cov('9781571313560'), goodreads_url: gr('Braiding Sweetgrass') },
+    { id: 'b10', title: 'Sea of Tranquility',                   author: 'Emily St. John Mandel', month_read: '2026-07-01', cover_url: cov('9780593321447'), goodreads_url: gr('Sea of Tranquility') },
+    { id: 'b11', title: 'The Covenant of Water',                author: 'Abraham Verghese',      month_read: '2026-08-01', cover_url: cov('9780802162175'), goodreads_url: gr('The Covenant of Water') },
+    { id: 'b12', title: 'James',                                author: 'Percival Everett',      month_read: '2026-09-01', cover_url: cov('9780385550369'), goodreads_url: gr('James Percival Everett') },
+  ];
+  const names = ['Dan','Priya','Marcus','Elena','Sofia','James','Aisha','Tom','Grace','Leo','Nina','Omar','Sam','Ruth','Kai','Jo','Max','Ana','Theo','Bea'];
+  const members = names.map((n, i) => ({ id: 'm' + i, name: n }));
+  const ratings = [];
+  books.forEach((b, bi) => {
+    members.forEach((m, ni) => {
+      const h = (bi * 7 + ni * 13 + 5) % 17;
+      if (h < 11) { // ~65% participation
+        const stars = Math.min(5, Math.max(1, Math.round(((h % 9) / 2 + 1.5 + bi % 3) * 2) / 2));
+        ratings.push({ book_id: b.id, stars, members: { id: m.id, name: m.name } });
+      }
+    });
+  });
+  return { books, members, ratings };
+})();
+
+(async function () {
+  const statusEl = document.getElementById('status');
+  const wrap = document.getElementById('tablewrap');
+  let viewMode = 'books';
+  let bookSort = { key: 'avg', dir: -1 };     // avg | month
+
+  // ---------- load: Supabase if configured, otherwise placeholder ----------
+  let books, members, ratings;
+  const cfg = window.BOOKCLUB_CONFIG || {};
+  const configured = cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY
+    && !cfg.SUPABASE_URL.includes('YOUR-PROJECT-REF');
+
+  if (configured) {
+    const db = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    const [b, m, r] = await Promise.all([
+      db.from('books').select('id, title, author, cover_url, goodreads_url, month_read'),
+      db.from('members').select('id, name').order('name'),
+      db.from('ratings').select('book_id, stars, members ( id, name )'),
+    ]);
+    const err = b.error || m.error || r.error;
+    if (err) { statusEl.textContent = 'Could not load data: ' + err.message; return; }
+    books = b.data; members = m.data; ratings = r.data;
+  } else {
+    ({ books, members, ratings } = MOCK);
+    document.getElementById('mockbanner').hidden = false;
+  }
+
+  // ---------- shape ----------
+  members = members.slice().sort((a, z) => a.name.localeCompare(z.name));
+  const rating = new Map(); // `${bookId}|${memberId}` -> stars
+  for (const r of ratings) rating.set(r.book_id + '|' + r.members.id, Number(r.stars));
+
+  const bookById = new Map(books.map(b => [b.id, b]));
+  const enriched = books.map(b => {
+    const stars = members.map(m => rating.get(b.id + '|' + m.id)).filter(s => s !== undefined);
+    const avg = stars.length ? stars.reduce((s, x) => s + x, 0) / stars.length : null;
+    return { ...b, count: stars.length, avg };
+  });
+
+  const memberStats = members.map(m => {
+    const rows = ratings.filter(r => r.members.id === m.id)
+      .sort((a, z) => bookById.get(z.book_id).month_read.localeCompare(bookById.get(a.book_id).month_read));
+    if (!rows.length) return { ...m, count: 0, avg: null, recentAvg: null, recentCount: 0, hi: null, lo: null };
+    const vals = rows.map(r => Number(r.stars));
+    const avg = vals.reduce((s, x) => s + x, 0) / vals.length;
+    const recent = vals.slice(0, 5);
+    return {
+      ...m, count: rows.length, avg,
+      recentAvg: recent.reduce((s, x) => s + x, 0) / recent.length,
+      recentCount: recent.length,
+      hi: bookById.get(rows[vals.indexOf(Math.max(...vals))].book_id),
+      hiStars: Math.max(...vals),
+      lo: bookById.get(rows[vals.indexOf(Math.min(...vals))].book_id),
+      loStars: Math.min(...vals),
+    };
+  });
+
+  // ---------- helpers ----------
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const monthFmt = d => new Date(d + 'T00:00:00')
+    .toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  const fmt1 = n => (Math.round(n * 10) / 10).toFixed(1);
+  // sequential heat: faint lilac → periwinkle → lavender-blue,
+  // a single-hue crescendo that resolves into the holographic 5
+  const HEAT_STOPS = [
+    [0.5, [248, 247, 252]],  // barely-there lilac
+    [2,   [226, 224, 245]],  // pale periwinkle
+    [3,   [200, 199, 237]],  // periwinkle
+    [4,   [170, 169, 226]],  // deep periwinkle
+    [4.5, [146, 146, 215]],  // lavender-blue
+  ];
+  const heat = s => {
+    let lo = HEAT_STOPS[0], hi = HEAT_STOPS[HEAT_STOPS.length - 1];
+    for (let i = 0; i < HEAT_STOPS.length - 1; i++)
+      if (s >= HEAT_STOPS[i][0] && s <= HEAT_STOPS[i + 1][0]) { lo = HEAT_STOPS[i]; hi = HEAT_STOPS[i + 1]; break; }
+    const t = hi[0] === lo[0] ? 0 : Math.min(1, Math.max(0, (s - lo[0]) / (hi[0] - lo[0])));
+    const c = lo[1].map((v, i) => Math.round(v + (hi[1][i] - v) * t));
+    return `background:rgb(${c[0]},${c[1]},${c[2]});color:var(--ink)`;
+  };
+  const arrow = (state, key) => state.key === key ? `<span class="arrow">${state.dir < 0 ? '▼' : '▲'}</span>` : '';
+
+  // ---------- books matrix ----------
+  const MEDALS = ['🥇', '🥈', '🥉'];
+  const rankOf = new Map(enriched.slice()
+    .sort((a, z) => (z.avg ?? -1) - (a.avg ?? -1) || z.count - a.count)
+    .map((b, i) => [b.id, i]));
+
+  function renderBooks() {
+    // dir -1 = descending (default)
+    const list = enriched.slice().sort((a, z) => bookSort.key === 'avg'
+      ? ((a.avg ?? -1) - (z.avg ?? -1)) * bookSort.dir || z.count - a.count
+      : a.month_read.localeCompare(z.month_read) * bookSort.dir);
+
+    const head = `
+      <tr>
+        <th class="bookcell">Book</th>
+        <th class="sortable" data-sort="month">Month ${arrow(bookSort, 'month')}</th>
+        <th class="sortable num" data-sort="avg">Avg ${arrow(bookSort, 'avg')}</th>
+        ${members.map(m => `<th class="mcol">${esc(m.name)}</th>`).join('')}
+      </tr>`;
+
+    const rows = list.map(b => {
+      const cover = b.cover_url
+        ? `<img class="cover" src="${esc(b.cover_url)}" alt="" loading="lazy"
+             onerror="this.outerHTML='<div class=&quot;cover ph&quot;>📖</div>'">`
+        : `<div class="cover ph">📖</div>`;
+      const title = b.goodreads_url
+        ? `<a href="${esc(b.goodreads_url)}" target="_blank" rel="noopener">${esc(b.title)}</a>`
+        : esc(b.title);
+      const cells = members.map(m => {
+        const s = rating.get(b.id + '|' + m.id);
+        if (s === undefined) return `<td class="cell empty">–</td>`;
+        const label = s % 1 ? s : s + '.0';
+        if (s === 5) {
+          // per-cell phase + tempo, deterministic from book+member
+          let h = 0; for (const ch of b.id + m.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+          const dur = 12 + (h % 8);              // 12–19s
+          const delay = -((h >> 6) % (dur * 10)) / 10; // start mid-cycle
+          return `<td class="cell holo" style="--t:${dur}s;--d:${delay}s" title="${esc(m.name)}: a perfect 5 ✨"><b class="v">${label}</b></td>`;
+        }
+        return `<td class="cell" style="${heat(s)}" title="${esc(m.name)}: ${s}/5">${label}</td>`;
+      }).join('');
+      const rank = rankOf.get(b.id);
+      const medal = b.avg !== null && rank < 3 ? `<span class="medal">${MEDALS[rank]}</span>` : '';
+      return `
+      <tr>
+        <td class="bookcell"><div class="bookline">${cover}
+          <div><div class="b-title">${title}</div><div class="b-author">${esc(b.author)}</div></div>
+        </div></td>
+        <td class="month">${monthFmt(b.month_read)}</td>
+        <td class="avg">${medal}${b.avg !== null ? fmt1(b.avg) + `<span class="of">${b.count} votes</span>` : '<span class="of">unrated</span>'}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    wrap.querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      bookSort = { key, dir: bookSort.key === key ? -bookSort.dir : -1 };
+      renderBooks();
+    }));
+    statusEl.style.display = books.length ? 'none' : '';
+    if (!books.length) statusEl.textContent = 'No books yet — check back after the first meeting.';
+  }
+
+  // ---------- members table (alphabetical, no ranking — it's not a contest) ----------
+  function renderMembers() {
+    const head = `
+      <tr>
+        <th>Member</th>
+        <th class="num">Books rated</th>
+        <th class="num">Avg given</th>
+        <th class="num">Last 5 avg</th>
+        <th>Favorite</th>
+        <th>Least favorite</th>
+      </tr>`;
+
+    const rows = memberStats.map(m => m.count === 0 ? `
+      <tr>
+        <td class="m-name">${esc(m.name)}</td>
+        <td class="stat num"><span class="of">no ratings yet</span></td>
+        <td class="stat num">–</td><td class="stat num">–</td><td class="range">–</td><td class="range">–</td>
+      </tr>` : `
+      <tr>
+        <td class="m-name">${esc(m.name)}</td>
+        <td class="stat num">${m.count} <span class="of">of ${books.length}</span></td>
+        <td class="stat num"><b>${fmt1(m.avg)}</b></td>
+        <td class="stat num">${fmt1(m.recentAvg)}</td>
+        <td class="range">${esc(m.hi.title)} <b>(${m.hiStars}${m.hiStars === 5 ? ' ✨' : ''})</b></td>
+        <td class="range">${esc(m.lo.title)} <b>(${m.loStars})</b></td>
+      </tr>`).join('');
+
+    wrap.innerHTML = `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    statusEl.style.display = 'none';
+  }
+
+  // ---------- view switching ----------
+  function render() { viewMode === 'books' ? renderBooks() : renderMembers(); }
+  document.getElementById('view-books').addEventListener('click', e => setView('books', e.target));
+  document.getElementById('view-members').addEventListener('click', e => setView('members', e.target));
+  function setView(mode, btn) {
+    viewMode = mode;
+    document.querySelectorAll('nav.tabs button').forEach(x => x.classList.remove('on'));
+    btn.classList.add('on');
+    render();
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
