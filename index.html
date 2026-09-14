@@ -286,7 +286,7 @@ const MOCK = (() => {
     { id: 'b12', title: 'James',                                author: 'Percival Everett',      month_read: '2026-09-01', cover_url: cov('9780385550369'), goodreads_url: gr('James Percival Everett') },
   ];
   const names = ['Dan','Priya','Marcus','Elena','Sofia','James','Aisha','Tom','Grace','Leo','Nina','Omar','Sam','Ruth','Kai','Jo','Max','Ana','Theo','Bea'];
-  const members = names.map((n, i) => ({ id: 'm' + i, name: n }));
+  const members = names.map((n, i) => ({ id: 'm' + i, name: n, is_active: true }));
   const ratings = [];
   books.forEach((b, bi) => {
     members.forEach((m, ni) => {
@@ -315,7 +315,7 @@ const MOCK = (() => {
     const db = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
     const [b, m, r] = await Promise.all([
       db.from('books').select('id, title, author, cover_url, goodreads_url, month_read'),
-      db.from('members').select('id, name').order('name'),
+      db.from('members').select('id, name, is_active').order('name'),
       db.from('ratings').select('book_id, stars, members ( id, name )'),
     ]);
     const err = b.error || m.error || r.error;
@@ -327,7 +327,10 @@ const MOCK = (() => {
   }
 
   // ---------- shape ----------
-  members = members.slice().sort((a, z) => a.name.localeCompare(z.name));
+  // deactivated members are hidden entirely: no column, no row,
+  // and their ratings don't count toward averages
+  members = members.filter(m => m.is_active !== false)
+    .sort((a, z) => a.name.localeCompare(z.name));
   const rating = new Map(); // `${bookId}|${memberId}` -> stars
   for (const r of ratings) rating.set(r.book_id + '|' + r.members.id, Number(r.stars));
 

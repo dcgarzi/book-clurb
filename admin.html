@@ -161,7 +161,7 @@
       <label>Book</label>
       <select id="r-book"></select>
       <div id="rate-rows" style="margin-top:16px"></div>
-      <div class="hint">Click a star to set the rating — click the same star again for a half (4 → 3.5). ✕ clears. Every change saves instantly.</div>
+      <div class="hint">Click the <b>right half</b> of a star for a whole number, the <b>left half</b> for a half (left side of the 4th star = 3.5). ✕ clears. Every change saves instantly.</div>
       <div class="msg" id="rate-msg"></div>
     </section>
 
@@ -173,7 +173,7 @@
       </form>
       <div class="msg" id="member-msg"></div>
       <div class="memberlist" id="memberlist"></div>
-      <div class="hint">Inactive members keep their past ratings; they're just sorted last here.</div>
+      <div class="hint">Deactivating hides a member from the public site entirely — their column, their row, and their effect on averages. Nothing is deleted: reactivate and it all comes back.</div>
     </section>
   </div>
 </main>
@@ -221,6 +221,7 @@
       async deleteBook(id) { const { error } = await db.from('books').delete().eq('id', id); if (error) throw error; },
       async addMember(name){ const { error } = await db.from('members').insert({ name }); if (error) throw error; },
       async setActive(id, v){ const { error } = await db.from('members').update({ is_active: v }).eq('id', id); if (error) throw error; },
+      async renameMember(id, name) { const { error } = await db.from('members').update({ name }).eq('id', id); if (error) throw error; },
       async upsert(bookId, memberId, stars) {
         const { error } = await db.from('ratings').upsert(
           { book_id: bookId, member_id: memberId, stars }, { onConflict: 'book_id,member_id' });
@@ -267,6 +268,10 @@
         members.push({ id: nid(), name, is_active: true });
       },
       async setActive(id, v){ members.find(m => m.id === id).is_active = v; },
+      async renameMember(id, name) {
+        if (members.some(m => m.name === name && m.id !== id)) throw new Error('duplicate key: that name already exists');
+        members.find(m => m.id === id).name = name;
+      },
       async upsert(bookId, memberId, stars) {
         const r = ratings.find(r => r.book_id === bookId && r.member_id === memberId);
         if (r) r.stars = stars; else ratings.push({ book_id: bookId, member_id: memberId, stars });
@@ -375,6 +380,17 @@
       const chip = document.createElement('div');
       chip.className = 'chip' + (m.is_active ? '' : ' inactive');
       chip.innerHTML = `<span>${escapeHtml(m.name)}</span>`;
+      const rename = document.createElement('button');
+      rename.textContent = 'rename';
+      rename.onclick = async () => {
+        const name = prompt(`Rename "${m.name}" to:`, m.name);
+        if (!name || !name.trim() || name.trim() === m.name) return;
+        try { await api.renameMember(m.id, name.trim()); }
+        catch (err) { return msg('member-msg', err.message, false); }
+        msg('member-msg', 'Renamed ✓ (their ratings follow the name)', true);
+        await loadAll();
+      };
+      chip.appendChild(rename);
       const toggle = document.createElement('button');
       toggle.textContent = m.is_active ? 'deactivate' : 'activate';
       toggle.onclick = async () => {
@@ -426,7 +442,12 @@
         s.textContent = '★';
         if (stars >= i) s.className = 'full';
         else if (stars >= i - 0.5) s.className = 'half';
-        s.onclick = () => save(m.id, stars === i ? i - 0.5 : i, row);
+        // left half of a star = half rating, right half = whole
+        s.onclick = e => {
+          const rect = s.getBoundingClientRect();
+          const half = (e.clientX - rect.left) < rect.width / 2;
+          save(m.id, half ? i - 0.5 : i, row);
+        };
         pick.appendChild(s);
       }
       row.querySelector('button').onclick = () => clearRating(m.id);
