@@ -15,6 +15,7 @@
     --hover: #f7f7f7;
     --serif: Georgia, 'Times New Roman', Times, serif;
     --sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --bookw: 250px; /* width of the pinned book column */
   }
   * { box-sizing: border-box; }
   body {
@@ -74,9 +75,6 @@
     vertical-align: bottom; background: var(--bg);
     position: sticky; top: 0; z-index: 2;
   }
-  th.sortable { cursor: pointer; }
-  th.sortable:hover { color: var(--ink); }
-  th .arrow { font-size: 9px; }
   tbody td {
     border-bottom: 1px solid var(--hairline);
     padding: 14px 10px; vertical-align: middle;
@@ -85,10 +83,16 @@
 
   /* ---------- books matrix ---------- */
   td.bookcell, th.bookcell {
-    position: sticky; left: 0; background: var(--bg); z-index: 1; min-width: 240px; max-width: 300px;
+    position: sticky; left: 0; background: var(--bg); z-index: 1;
+    width: var(--bookw); min-width: var(--bookw); max-width: var(--bookw);
   }
   th.bookcell { z-index: 3; }
-  td.bookcell, th.bookcell { box-shadow: 8px 0 8px -8px rgba(0,0,0,.18); }
+  td.avgcol, th.avgcol {
+    position: sticky; left: var(--bookw); background: var(--bg); z-index: 1;
+    box-shadow: 8px 0 8px -8px rgba(0,0,0,.18);
+  }
+  th.avgcol { z-index: 3; }
+  tbody tr:hover td.avgcol { background: var(--hover); }
   tbody tr:hover td.bookcell { background: var(--hover); }
   .bookline { display: flex; gap: 12px; align-items: center; }
   .cover {
@@ -96,11 +100,14 @@
     background: var(--hairline); box-shadow: 0 2px 5px rgba(0,0,0,.25);
   }
   .cover.ph { display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .b-month {
+    font-family: var(--sans); font-size: 10.5px; color: var(--accent, var(--muted));
+    text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); margin-bottom: 2px;
+  }
   .b-title { font-size: 16px; font-weight: 700; line-height: 1.25; }
   .b-title a { color: inherit; text-decoration: none; }
   .b-title a:hover { text-decoration: underline; text-underline-offset: 3px; }
   .b-author { font-family: var(--sans); font-size: 12px; color: var(--muted); margin-top: 2px; }
-  td.month { font-family: var(--sans); font-size: 12px; color: var(--muted); white-space: nowrap; }
   td.avg { font-family: var(--sans); font-size: 16px; font-weight: 700; text-align: center; }
   td.avg .of { display: block; font-size: 9.5px; font-weight: 400; color: var(--faint); letter-spacing: 1px; }
 
@@ -204,18 +211,18 @@
     .tabs-rule { margin-bottom: 24px; }
     .swipehint { display: block; }
 
+    :root { --bookw: 180px; }
     thead th { font-size: 11px; padding: 0 6px 8px; letter-spacing: 0.9px; }
     tbody td { padding: 10px 6px; }
-    td.bookcell, th.bookcell { min-width: 170px; max-width: 190px; }
     .bookline { gap: 8px; }
-    .cover { width: 44px; height: 66px; }
+    .cover { width: 53px; height: 79px; }
+    .b-month { font-size: 10px; }
     .b-title { font-size: 15.5px; }
     .b-author { font-size: 12.5px; }
-    td.month { font-size: 12.5px; }
     td.avg { font-size: 15.5px; }
     td.avg .of { font-size: 10px; }
     th.mcol { font-size: 11.5px; padding: 0 2px 8px; }
-    td.cell { min-width: 40px; padding: 11px 3px; font-size: 13px; }
+    td.cell { min-width: 42px; padding: 11px 3px; font-size: 14.5px; }
 
     td.m-name { font-size: 17px; }
     td.stat { font-size: 15px; }
@@ -252,7 +259,7 @@
   <div class="tablewrap" id="tablewrap"></div>
 </main>
 
-<footer>Ratings out of 5 · Averages count only members who rated that book · Sort books by clicking Month or Avg · Deeper lavender = higher rating · A perfect 5 goes holographic ✨</footer>
+<footer>Ratings out of 5 · Averages count only members who rated that book · Deeper lavender = higher rating · A perfect 5 goes holographic ✨</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="config.js" onerror="void 0"></script>
@@ -297,7 +304,6 @@ const MOCK = (() => {
   const statusEl = document.getElementById('status');
   const wrap = document.getElementById('tablewrap');
   let viewMode = 'books';
-  let bookSort = { key: 'month', dir: -1 };   // avg | month (default: newest first)
 
   // ---------- load: Supabase if configured, otherwise placeholder ----------
   let books, members, ratings;
@@ -374,7 +380,6 @@ const MOCK = (() => {
     const c = lo[1].map((v, i) => Math.round(v + (hi[1][i] - v) * t));
     return `background:rgb(${c[0]},${c[1]},${c[2]});color:var(--ink)`;
   };
-  const arrow = (state, key) => state.key === key ? `<span class="arrow">${state.dir < 0 ? '▼' : '▲'}</span>` : '';
 
   // ---------- books matrix ----------
   const MEDALS = ['🥇', '🥈', '🥉'];
@@ -383,16 +388,13 @@ const MOCK = (() => {
     .map((b, i) => [b.id, i]));
 
   function renderBooks() {
-    // dir -1 = descending (default)
-    const list = enriched.slice().sort((a, z) => bookSort.key === 'avg'
-      ? ((a.avg ?? -1) - (z.avg ?? -1)) * bookSort.dir || z.count - a.count
-      : a.month_read.localeCompare(z.month_read) * bookSort.dir);
+    // fixed order: newest month first
+    const list = enriched.slice().sort((a, z) => z.month_read.localeCompare(a.month_read));
 
     const head = `
       <tr>
         <th class="bookcell">Book</th>
-        <th class="sortable" data-sort="month">Month ${arrow(bookSort, 'month')}</th>
-        <th class="sortable num" data-sort="avg">Avg ${arrow(bookSort, 'avg')}</th>
+        <th class="num avgcol">Avg</th>
         ${members.map(m => `<th class="mcol"><span>${esc(m.name)}</span></th>`).join('')}
       </tr>`;
 
@@ -422,20 +424,18 @@ const MOCK = (() => {
       return `
       <tr>
         <td class="bookcell"><div class="bookline">${cover}
-          <div><div class="b-title">${title}</div><div class="b-author">${esc(b.author)}</div></div>
+          <div>
+            <div class="b-month">${monthFmt(b.month_read)}</div>
+            <div class="b-title">${title}</div>
+            <div class="b-author">${esc(b.author)}</div>
+          </div>
         </div></td>
-        <td class="month">${monthFmt(b.month_read)}</td>
-        <td class="avg">${medal}${b.avg !== null ? fmt1(b.avg) + `<span class="of">${b.count} rating${b.count === 1 ? '' : 's'}</span>` : '<span class="of">unrated</span>'}</td>
+        <td class="avg avgcol">${medal}${b.avg !== null ? fmt1(b.avg) + `<span class="of">${b.count} rating${b.count === 1 ? '' : 's'}</span>` : '<span class="of">unrated</span>'}</td>
         ${cells}
       </tr>`;
     }).join('');
 
     wrap.innerHTML = `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
-    wrap.querySelectorAll('th.sortable').forEach(th => th.addEventListener('click', () => {
-      const key = th.dataset.sort;
-      bookSort = { key, dir: bookSort.key === key ? -bookSort.dir : -1 };
-      renderBooks();
-    }));
     statusEl.style.display = books.length ? 'none' : '';
     if (!books.length) statusEl.textContent = 'No books yet — check back after the first meeting.';
   }
