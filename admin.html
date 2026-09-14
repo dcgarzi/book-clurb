@@ -87,6 +87,17 @@
   .chip.inactive { opacity: .5; }
   .chip button { all: unset; cursor: pointer; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
   .chip button:hover { color: var(--peri-dark); }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 640px) {
+    body { padding: 0 14px 60px; }
+    .masthead { padding-top: 26px; }
+    section { padding: 16px; }
+    .topbar { flex-wrap: wrap; }
+    .rate-row { gap: 8px; }
+    .starpick span { font-size: 24px; width: 26px; } /* bigger tap targets */
+    .rate-val { width: 30px; font-size: 12px; }
+  }
 </style>
 </head>
 <body>
@@ -124,7 +135,9 @@
     </section>
 
     <section>
-      <h2>This month's book</h2>
+      <h2>Books</h2>
+      <label>Add new, or edit an existing book</label>
+      <select id="b-edit"></select>
       <form id="book-form">
         <div class="row2">
           <div><label>Title</label><input id="b-title" required></div>
@@ -137,7 +150,8 @@
         <label>Cover image URL</label>
         <input id="b-cover" type="url" placeholder="https://covers.openlibrary.org/b/isbn/9780…-M.jpg">
         <div class="hint">Open Library serves covers by ISBN: <code>covers.openlibrary.org/b/isbn/&lt;ISBN&gt;-M.jpg</code></div>
-        <button class="primary" type="submit">Add book</button>
+        <button class="primary" type="submit" id="b-submit">Add book</button>
+        <button class="ghost hidden" type="button" id="b-delete" style="margin-left:12px">Delete this book…</button>
         <div class="msg" id="book-msg"></div>
       </form>
     </section>
@@ -203,6 +217,8 @@
         if (error) throw error; return data;
       },
       async addBook(rec)   { const { error } = await db.from('books').insert(rec); if (error) throw error; },
+      async updateBook(id, rec) { const { error } = await db.from('books').update(rec).eq('id', id); if (error) throw error; },
+      async deleteBook(id) { const { error } = await db.from('books').delete().eq('id', id); if (error) throw error; },
       async addMember(name){ const { error } = await db.from('members').insert({ name }); if (error) throw error; },
       async setActive(id, v){ const { error } = await db.from('members').update({ is_active: v }).eq('id', id); if (error) throw error; },
       async upsert(bookId, memberId, stars) {
@@ -241,6 +257,11 @@
       },
       async ratingsFor(bookId) { return ratings.filter(r => r.book_id === bookId); },
       async addBook(rec)    { books.push({ id: nid(), ...rec }); },
+      async updateBook(id, rec) { Object.assign(books.find(b => b.id === id), rec); },
+      async deleteBook(id) {
+        books.splice(books.findIndex(b => b.id === id), 1);
+        for (let i = ratings.length - 1; i >= 0; i--) if (ratings[i].book_id === id) ratings.splice(i, 1);
+      },
       async addMember(name) {
         if (members.some(m => m.name === name)) throw new Error('duplicate key: that name already exists');
         members.push({ id: nid(), name, is_active: true });
@@ -283,23 +304,58 @@
     catch (e) { return msg('rate-msg', e.message, false); }
     renderMembers();
     renderBookSelect();
+    renderBookEditSelect();
     await loadRatings();
   }
 
-  // ----- books -----
+  // ----- books (add / edit / delete) -----
+  function renderBookEditSelect() {
+    const sel = $('b-edit'); const prev = sel.value;
+    sel.innerHTML = '<option value="">➕ Add a new book</option>' + books.map(b =>
+      `<option value="${b.id}">✏️ ${escapeHtml(b.title)} — ${b.month_read.slice(0, 7)}</option>`).join('');
+    if (prev && books.some(b => b.id === prev)) sel.value = prev;
+    syncBookForm();
+  }
+
+  function syncBookForm() {
+    const b = books.find(x => x.id === $('b-edit').value);
+    $('b-title').value     = b ? b.title : '';
+    $('b-author').value    = b ? b.author : '';
+    $('b-month').value     = b ? b.month_read.slice(0, 7) : '';
+    $('b-goodreads').value = b ? (b.goodreads_url || '') : '';
+    $('b-cover').value     = b ? (b.cover_url || '') : '';
+    $('b-submit').textContent = b ? 'Save changes' : 'Add book';
+    $('b-delete').classList.toggle('hidden', !b);
+  }
+
+  $('b-edit').addEventListener('change', syncBookForm);
+
   $('book-form').addEventListener('submit', async e => {
     e.preventDefault();
+    const editingId = $('b-edit').value;
+    const rec = {
+      title: $('b-title').value.trim(),
+      author: $('b-author').value.trim(),
+      month_read: $('b-month').value + '-01',
+      goodreads_url: $('b-goodreads').value.trim() || null,
+      cover_url: $('b-cover').value.trim() || null,
+    };
     try {
-      await api.addBook({
-        title: $('b-title').value.trim(),
-        author: $('b-author').value.trim(),
-        month_read: $('b-month').value + '-01',
-        goodreads_url: $('b-goodreads').value.trim() || null,
-        cover_url: $('b-cover').value.trim() || null,
-      });
+      if (editingId) await api.updateBook(editingId, rec);
+      else await api.addBook(rec);
     } catch (err) { return msg('book-msg', err.message, false); }
-    msg('book-msg', 'Book added ✓', true);
-    e.target.reset();
+    msg('book-msg', editingId ? 'Saved ✓' : 'Book added ✓', true);
+    if (!editingId) e.target.reset();
+    await loadAll();
+  });
+
+  $('b-delete').addEventListener('click', async () => {
+    const b = books.find(x => x.id === $('b-edit').value);
+    if (!b) return;
+    if (!confirm(`Delete "${b.title}" and all of its ratings? This can't be undone.`)) return;
+    try { await api.deleteBook(b.id); } catch (err) { return msg('book-msg', err.message, false); }
+    $('b-edit').value = '';
+    msg('book-msg', 'Book deleted', true);
     await loadAll();
   });
 
