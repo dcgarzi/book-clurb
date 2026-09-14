@@ -25,6 +25,7 @@
 
   /* ---------- masthead ---------- */
   .masthead { max-width: 1200px; margin: 0 auto; text-align: center; padding-top: 44px; }
+  .masthead .emblem { font-size: 48px; line-height: 1; margin-bottom: 14px; }
   .masthead h1 {
     font-size: clamp(26px, 4.5vw, 40px); font-weight: 700; letter-spacing: -0.5px;
     margin: 0 0 6px;
@@ -63,7 +64,7 @@
   .mockbanner b { color: var(--ink); }
 
   /* ---------- shared table ---------- */
-  .tablewrap { overflow-x: auto; }
+  .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table { border-collapse: collapse; width: 100%; }
   thead th {
     font-family: var(--sans); font-size: 10.5px; font-weight: 600; color: var(--muted);
@@ -87,11 +88,12 @@
     position: sticky; left: 0; background: var(--bg); z-index: 1; min-width: 240px; max-width: 300px;
   }
   th.bookcell { z-index: 3; }
+  td.bookcell, th.bookcell { box-shadow: 8px 0 8px -8px rgba(0,0,0,.18); }
   tbody tr:hover td.bookcell { background: var(--hover); }
   .bookline { display: flex; gap: 12px; align-items: center; }
   .cover {
-    width: 38px; height: 57px; flex: none; object-fit: cover;
-    background: var(--hairline); box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    width: 60px; height: 90px; flex: none; object-fit: cover;
+    background: var(--hairline); box-shadow: 0 2px 5px rgba(0,0,0,.25);
   }
   .cover.ph { display: flex; align-items: center; justify-content: center; font-size: 15px; }
   .b-title { font-size: 16px; font-weight: 700; line-height: 1.25; }
@@ -102,10 +104,10 @@
   td.avg { font-family: var(--sans); font-size: 16px; font-weight: 700; text-align: center; }
   td.avg .of { display: block; font-size: 9.5px; font-weight: 400; color: var(--faint); letter-spacing: 1px; }
 
-  th.mcol {
-    text-align: center; padding: 0 3px 10px;
+  th.mcol { text-align: center; padding: 0 3px 10px; letter-spacing: 0.8px; }
+  th.mcol span {
     writing-mode: vertical-rl; transform: rotate(180deg);
-    letter-spacing: 0.8px; max-height: 120px;
+    display: inline-block; max-height: 120px;
   }
   td.cell {
     font-family: var(--sans); font-size: 12.5px; text-align: center;
@@ -185,12 +187,51 @@
     font-family: var(--sans); font-size: 11.5px; text-align: center;
     letter-spacing: 0.3px; border-top: 1px solid var(--hairline); padding-top: 16px;
   }
+
+  /* ---------- mobile ---------- */
+  .swipehint {
+    display: none; font-family: var(--sans); font-size: 11px; color: var(--faint);
+    text-align: right; padding: 0 4px 6px; letter-spacing: 0.5px;
+  }
+  @media (max-width: 640px) {
+    body { padding: 0 14px 48px; }
+    .masthead { padding-top: 28px; }
+    .masthead .emblem { font-size: 38px; margin-bottom: 10px; }
+    .masthead .dek { font-size: 10.5px; letter-spacing: 1.5px; }
+    .rule { margin-top: 16px; }
+    nav.tabs { gap: 28px; }
+    nav.tabs button { padding: 12px 2px 10px; font-size: 12px; }
+    .tabs-rule { margin-bottom: 24px; }
+    .swipehint { display: block; }
+
+    thead th { font-size: 9.5px; padding: 0 6px 8px; letter-spacing: 0.9px; }
+    tbody td { padding: 10px 6px; }
+    td.bookcell, th.bookcell { min-width: 150px; max-width: 170px; }
+    .bookline { gap: 8px; }
+    .cover { width: 44px; height: 66px; }
+    .b-title { font-size: 13px; }
+    .b-author { font-size: 10.5px; }
+    td.month { font-size: 10.5px; }
+    td.avg { font-size: 13px; }
+    td.avg .of { font-size: 8.5px; }
+    th.mcol { font-size: 9.5px; padding: 0 2px 8px; }
+    td.cell { min-width: 34px; padding: 10px 3px; font-size: 11px; }
+
+    td.m-name { font-size: 14px; }
+    td.stat { font-size: 12.5px; }
+    td.stat b { font-size: 13.5px; }
+    td.range { font-size: 11px; min-width: 130px; }
+    td.rank { width: 30px; }
+
+    footer { font-size: 10.5px; margin-top: 32px; }
+  }
 </style>
 </head>
 <body>
 
 <div class="masthead">
-  <h1>🏆 The Cultured Peoples of San Francisco Book Clurb</h1>
+  <div class="emblem">📖</div>
+  <h1>The Cultured Peoples of San Francisco Book Clurb</h1>
   <div class="dek">What we read, we also discuss.</div>
 </div>
 <hr class="rule"><hr class="rule thin">
@@ -207,6 +248,7 @@
 
 <main>
   <div id="status">Loading…</div>
+  <div class="swipehint">swipe for more ratings →</div>
   <div class="tablewrap" id="tablewrap"></div>
 </main>
 
@@ -255,7 +297,7 @@ const MOCK = (() => {
   const statusEl = document.getElementById('status');
   const wrap = document.getElementById('tablewrap');
   let viewMode = 'books';
-  let bookSort = { key: 'avg', dir: -1 };     // avg | month
+  let bookSort = { key: 'month', dir: -1 };   // avg | month (default: newest first)
 
   // ---------- load: Supabase if configured, otherwise placeholder ----------
   let books, members, ratings;
@@ -293,18 +335,19 @@ const MOCK = (() => {
   const memberStats = members.map(m => {
     const rows = ratings.filter(r => r.members.id === m.id)
       .sort((a, z) => bookById.get(z.book_id).month_read.localeCompare(bookById.get(a.book_id).month_read));
-    if (!rows.length) return { ...m, count: 0, avg: null, recentAvg: null, recentCount: 0, hi: null, lo: null };
+    if (!rows.length) return { ...m, count: 0, avg: null, recentAvg: null, recentCount: 0, hiTitles: null, loTitles: null };
     const vals = rows.map(r => Number(r.stars));
     const avg = vals.reduce((s, x) => s + x, 0) / vals.length;
     const recent = vals.slice(0, 5);
+    const hiStars = Math.max(...vals), loStars = Math.min(...vals);
+    const titlesAt = v => rows.filter(r => Number(r.stars) === v)
+      .map(r => bookById.get(r.book_id).title).join(' · ');
     return {
       ...m, count: rows.length, avg,
       recentAvg: recent.reduce((s, x) => s + x, 0) / recent.length,
       recentCount: recent.length,
-      hi: bookById.get(rows[vals.indexOf(Math.max(...vals))].book_id),
-      hiStars: Math.max(...vals),
-      lo: bookById.get(rows[vals.indexOf(Math.min(...vals))].book_id),
-      loStars: Math.min(...vals),
+      hiTitles: titlesAt(hiStars), hiStars,
+      loTitles: titlesAt(loStars), loStars,
     };
   });
 
@@ -350,7 +393,7 @@ const MOCK = (() => {
         <th class="bookcell">Book</th>
         <th class="sortable" data-sort="month">Month ${arrow(bookSort, 'month')}</th>
         <th class="sortable num" data-sort="avg">Avg ${arrow(bookSort, 'avg')}</th>
-        ${members.map(m => `<th class="mcol">${esc(m.name)}</th>`).join('')}
+        ${members.map(m => `<th class="mcol"><span>${esc(m.name)}</span></th>`).join('')}
       </tr>`;
 
     const rows = list.map(b => {
@@ -382,7 +425,7 @@ const MOCK = (() => {
           <div><div class="b-title">${title}</div><div class="b-author">${esc(b.author)}</div></div>
         </div></td>
         <td class="month">${monthFmt(b.month_read)}</td>
-        <td class="avg">${medal}${b.avg !== null ? fmt1(b.avg) + `<span class="of">${b.count} votes</span>` : '<span class="of">unrated</span>'}</td>
+        <td class="avg">${medal}${b.avg !== null ? fmt1(b.avg) + `<span class="of">${b.count} rating${b.count === 1 ? '' : 's'}</span>` : '<span class="of">unrated</span>'}</td>
         ${cells}
       </tr>`;
     }).join('');
@@ -420,8 +463,8 @@ const MOCK = (() => {
         <td class="stat num">${m.count} <span class="of">of ${books.length}</span></td>
         <td class="stat num"><b>${fmt1(m.avg)}</b></td>
         <td class="stat num">${fmt1(m.recentAvg)}</td>
-        <td class="range">${esc(m.hi.title)} <b>(${m.hiStars}${m.hiStars === 5 ? ' ✨' : ''})</b></td>
-        <td class="range">${esc(m.lo.title)} <b>(${m.loStars})</b></td>
+        <td class="range">${esc(m.hiTitles)} <b>(${m.hiStars}${m.hiStars === 5 ? ' ✨' : ''})</b></td>
+        <td class="range">${esc(m.loTitles)} <b>(${m.loStars})</b></td>
       </tr>`).join('');
 
     wrap.innerHTML = `<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
