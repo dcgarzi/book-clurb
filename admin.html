@@ -166,6 +166,16 @@
     </section>
 
     <section>
+      <h2>Recommendations</h2>
+      <div id="recs-admin"></div>
+      <div class="hint" style="margin-top:10px">
+        Recommendations live in the Google Sheet, not the database — the sheet <em>is</em> the admin surface.
+        Delete a row to remove one, edit a cell to revise, type a new row to add. The public page picks up
+        changes within a few minutes.
+      </div>
+    </section>
+
+    <section>
       <h2>Members</h2>
       <form id="member-form" class="row2" style="align-items:end">
         <div><label>Name</label><input id="m-name" required placeholder="e.g. Priya"></div>
@@ -466,6 +476,17 @@
       await loadRatings();
     }
   }
+
+  // ----- recommendations panel (links only; the Sheet is the editor) -----
+  (function renderRecsAdmin() {
+    const el = $('recs-admin');
+    const links = [];
+    if (cfg.RECS_SHEET_URL) links.push(`<a href="${cfg.RECS_SHEET_URL}" target="_blank" rel="noopener">Open the Sheet (edit entries) →</a>`);
+    if (cfg.RECS_FORM_URL)  links.push(`<a href="${cfg.RECS_FORM_URL}" target="_blank" rel="noopener">Open the Form (add like a member) →</a>`);
+    el.innerHTML = links.length
+      ? links.map(l => `<div style="margin:4px 0;font-size:14px">${l}</div>`).join('')
+      : '<div class="hint">Not wired up yet — add RECS_CSV_URL, RECS_FORM_URL and RECS_SHEET_URL to config.js (see config.example.js).</div>';
+  })();
 
   await refreshAuthUI();
 })();

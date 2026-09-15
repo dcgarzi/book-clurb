@@ -195,6 +195,26 @@
     letter-spacing: 0.3px; border-top: 1px solid var(--hairline); padding-top: 16px;
   }
 
+  /* ---------- recommendations ---------- */
+  .recs { max-width: 680px; margin: 0 auto; }
+  .rec { padding: 24px 0; border-bottom: 1px solid var(--hairline); }
+  .rec:last-child { border-bottom: none; }
+  .rec-title { font-family: var(--serif); font-size: 20px; font-weight: 700; line-height: 1.25; }
+  .rec-author { font-family: var(--serif); font-style: italic; color: var(--muted); font-size: 15px; margin-top: 1px; }
+  .rec-pitch { font-family: var(--serif); font-size: 15.5px; line-height: 1.55; margin-top: 10px; }
+  .rec-by {
+    font-family: var(--sans); font-size: 11.5px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.2px; margin-top: 10px;
+  }
+  .rec-cta {
+    display: inline-block; font-family: var(--sans); font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1.2px; color: var(--ink);
+    border: 1px solid var(--ink); padding: 9px 18px; text-decoration: none; margin-bottom: 28px;
+  }
+  .rec-cta:hover { background: var(--ink); color: #fff; }
+  .recs-head { text-align: center; }
+  .recs-empty { text-align: center; color: var(--muted); font-style: italic; padding: 30px 0; }
+
   /* ---------- mobile ---------- */
   .swipehint {
     display: none; font-family: var(--sans); font-size: 11px; color: var(--faint);
@@ -246,6 +266,7 @@
 <nav class="tabs">
   <button id="view-books" class="on">Books</button>
   <button id="view-members">Members</button>
+  <button id="view-recs">Recommendations</button>
 </nav>
 <hr class="tabs-rule">
 
@@ -474,10 +495,88 @@ const MOCK = (() => {
     statusEl.style.display = 'none';
   }
 
+  // ---------- recommendations (Google Form → Sheet → published CSV) ----------
+  const MOCK_RECS = [
+    { title: 'On Earth We\'re Briefly Gorgeous', author: 'Ocean Vuong', name: 'Priya', date: 'Sep 2026', pitch: 'A letter from a son to a mother who cannot read it. Devastating and gorgeous — we\'d argue about it for hours.' },
+    { title: 'Giovanni\'s Room', author: 'James Baldwin', name: 'Marcus', date: 'Sep 2026', pitch: 'A classic we somehow haven\'t done yet. Short, sharp, and perfect for one month.' },
+    { title: 'Detransition, Baby', author: 'Torrey Peters', name: 'Elena', date: 'Aug 2026', pitch: 'Messy, funny, and smart about family in every configuration.' },
+  ];
+
+  function parseCSV(text) {
+    const rows = []; let row = [], cur = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+      else if (c === '"') q = true;
+      else if (c === ',') { row.push(cur); cur = ''; }
+      else if (c === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; }
+      else if (c !== '\r') cur += c;
+    }
+    if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+    return rows;
+  }
+
+  function parseRecs(text) {
+    const rows = parseCSV(text).filter(r => r.some(c => c.trim()));
+    if (rows.length < 2) return [];
+    const head = rows[0].map(h => h.toLowerCase());
+    const col = (...words) => head.findIndex(h => words.some(w => h.includes(w)));
+    const iTime = col('timestamp'), iName = col('name'),
+          iTitle = col('title', 'book'), iAuthor = col('author'),
+          iPitch = col('why', 'pitch', 'reason', 'tell us', 'sell');
+    return rows.slice(1).map(r => {
+      const d = iTime >= 0 ? new Date(r[iTime]) : null;
+      return {
+        title:  iTitle  >= 0 ? r[iTitle].trim()  : '',
+        author: iAuthor >= 0 ? r[iAuthor].trim() : '',
+        name:   iName   >= 0 ? r[iName].trim()   : '',
+        pitch:  iPitch  >= 0 ? r[iPitch].trim()  : '',
+        date: d && !isNaN(d) ? d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '',
+        ts: d && !isNaN(d) ? d.getTime() : 0,
+      };
+    }).filter(r => r.title).sort((a, z) => z.ts - a.ts);
+  }
+
+  let recs = null;
+  async function renderRecs() {
+    const formCta = cfg.RECS_FORM_URL
+      ? `<div class="recs-head"><a class="rec-cta" href="${esc(cfg.RECS_FORM_URL)}" target="_blank" rel="noopener">Recommend a book →</a></div>` : '';
+    if (recs === null) {
+      if (!cfg.RECS_CSV_URL) {
+        recs = books === MOCK.books ? MOCK_RECS : [];
+      } else {
+        wrap.innerHTML = ''; statusEl.style.display = ''; statusEl.textContent = 'Loading recommendations…';
+        try {
+          const text = await fetch(cfg.RECS_CSV_URL).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); });
+          recs = parseRecs(text);
+        } catch (e) {
+          statusEl.textContent = 'Could not load recommendations: ' + e.message;
+          recs = null; return;
+        }
+      }
+    }
+    statusEl.style.display = 'none';
+    const list = recs.length ? recs.map(r => `
+      <article class="rec">
+        <div class="rec-title">${esc(r.title)}</div>
+        ${r.author ? `<div class="rec-author">${esc(r.author)}</div>` : ''}
+        ${r.pitch ? `<div class="rec-pitch">${esc(r.pitch)}</div>` : ''}
+        <div class="rec-by">${esc(r.name || 'anonymous')}${r.date ? ' · ' + r.date : ''}</div>
+      </article>`).join('')
+      : `<div class="recs-empty">${cfg.RECS_CSV_URL ? 'No recommendations yet — be the first!' : 'Recommendations aren\'t wired up yet (set RECS_CSV_URL in config.js).'}</div>`;
+    wrap.innerHTML = `<div class="recs">${formCta}${list}</div>`;
+  }
+
   // ---------- view switching ----------
-  function render() { viewMode === 'books' ? renderBooks() : renderMembers(); }
+  function render() {
+    document.querySelector('.swipehint').style.display = viewMode === 'recs' ? 'none' : '';
+    if (viewMode === 'books') renderBooks();
+    else if (viewMode === 'members') renderMembers();
+    else renderRecs();
+  }
   document.getElementById('view-books').addEventListener('click', e => setView('books', e.target));
   document.getElementById('view-members').addEventListener('click', e => setView('members', e.target));
+  document.getElementById('view-recs').addEventListener('click', e => setView('recs', e.target));
   function setView(mode, btn) {
     viewMode = mode;
     document.querySelectorAll('nav.tabs button').forEach(x => x.classList.remove('on'));
