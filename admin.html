@@ -66,6 +66,10 @@
   .topbar { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--muted); }
   .topbar .spacer { flex: 1; }
   .topbar a { color: var(--peri-dark); }
+  #save-state { font-size: 12px; }
+  #save-state.saving { color: var(--muted); }
+  #save-state.saved { color: var(--ok); }
+  #save-state.error { color: var(--err); }
   .hidden { display: none !important; }
   .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
   .hint code { background: var(--hover); padding: 1px 5px; }
@@ -80,7 +84,6 @@
   .starpick span.full { color: var(--star); }
   .starpick span.half { background: linear-gradient(90deg, var(--star) 50%, var(--star-empty) 50%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
   .rate-val { width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
-  .saved-dot { width: 14px; font-size: 12px; color: var(--ok); }
 
   .memberlist { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
   .chip { border: 1px solid var(--hairline); border-radius: 999px; padding: 4px 12px; font-size: 13px; display: flex; gap: 10px; align-items: center; }
@@ -95,7 +98,7 @@
     section { padding: 16px; }
     .topbar { flex-wrap: wrap; }
     .rate-row { gap: 8px; }
-    .starpick span { font-size: 24px; width: 26px; } /* bigger tap targets */
+    .starpick span { font-size: 24px; width: 26px; }
     .rate-val { width: 30px; font-size: 12px; }
   }
 </style>
@@ -109,18 +112,25 @@
 <hr class="rule"><hr class="rule thin">
 
 <div class="mockbanner" id="mockbanner" hidden>
-  <b>Preview mode</b> — Supabase isn't configured, so this is placeholder data and changes live only in this tab.
+  <b>Preview mode</b> — GitHub isn't configured, so this is placeholder data and changes live only in this tab.
 </div>
 
 <main>
-  <!-- LOGIN (only when Supabase is configured) -->
+  <!-- SIGN IN (GitHub personal access token) -->
   <section id="login-panel" class="hidden">
     <h2>Sign in</h2>
+    <p style="font-size:13.5px;color:var(--muted);margin-top:0">
+      This desk saves changes as commits to the site's GitHub repo, so it needs your
+      personal access token. It's stored only in this browser.
+    </p>
     <form id="login-form">
-      <label for="email">Email</label>
-      <input id="email" type="email" autocomplete="username" required>
-      <label for="password">Password</label>
-      <input id="password" type="password" autocomplete="current-password" required>
+      <label for="gh-token">GitHub personal access token</label>
+      <input id="gh-token" type="password" autocomplete="off" required placeholder="github_pat_…">
+      <div class="hint">
+        Make one at github.com → Settings → Developer settings → <b>Fine-grained tokens</b>:
+        access to <b>only this repository</b>, with Contents set to <b>Read and write</b>.
+        Pick a long expiration; you'll paste a fresh one when it lapses.
+      </div>
       <button class="primary" type="submit">Sign in</button>
       <div class="msg" id="login-msg"></div>
     </form>
@@ -129,6 +139,7 @@
   <div id="admin" class="hidden">
     <section class="topbar" style="padding:14px 24px">
       <span id="signed-in-as"></span>
+      <span id="save-state"></span>
       <span class="spacer"></span>
       <a href="index.html">view the public page →</a>
       <button class="ghost" id="signout">Sign out</button>
@@ -161,7 +172,7 @@
       <label>Book</label>
       <select id="r-book"></select>
       <div id="rate-rows" style="margin-top:16px"></div>
-      <div class="hint">Click the <b>right half</b> of a star for a whole number, the <b>left half</b> for a half (left side of the 4th star = 3.5). ✕ clears. Every change saves instantly.</div>
+      <div class="hint">Click the <b>right half</b> of a star for a whole number, the <b>left half</b> for a half (left side of the 4th star = 3.5). ✕ clears. Changes save as commits a moment after you stop clicking — watch the “saved ✓” up top.</div>
       <div class="msg" id="rate-msg"></div>
     </section>
 
@@ -169,7 +180,7 @@
       <h2>Recommendations</h2>
       <div id="recs-admin"></div>
       <div class="hint" style="margin-top:10px">
-        Recommendations live in the Google Sheet, not the database — the sheet <em>is</em> the admin surface.
+        Recommendations live in the Google Sheet, not in data.json — the sheet <em>is</em> the admin surface.
         Delete a row to remove one, edit a cell to revise, type a new row to add. The public page picks up
         changes within a few minutes.
       </div>
@@ -188,14 +199,15 @@
   </div>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="config.js" onerror="void 0"></script>
 <script>
 (async function () {
   const $ = id => document.getElementById(id);
   const cfg = window.BOOKCLUB_CONFIG || {};
-  const configured = cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY
-    && !cfg.SUPABASE_URL.includes('YOUR-PROJECT-REF');
+  const configured = cfg.GITHUB_OWNER && cfg.GITHUB_REPO;
+  const BRANCH = cfg.GITHUB_BRANCH || 'main';
+  const DATA_PATH = 'data.json';
+  const TOKEN_KEY = 'clurb_gh_token';
 
   function msg(id, text, ok) {
     const el = $(id); el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'err');
@@ -203,137 +215,173 @@
   }
   const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Date.now() + Math.random().toString(36).slice(2));
 
   // ============================================================
-  // Data layer: one interface, two backends (Supabase / in-memory
-  // preview). The UI below doesn't know which one it's talking to.
+  // Data layer: the whole dataset is one JSON file. The GitHub
+  // backend reads/writes it via the Contents API (each save is a
+  // commit); the preview backend keeps it in memory.
   // ============================================================
+  let data = null;   // { members: [], books: [], ratings: [] }
   let api;
 
   if (configured) {
-    const db = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    let token = null;
+    try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
+    let sha = null;
+    const apiUrl = `https://api.github.com/repos/${cfg.GITHUB_OWNER}/${cfg.GITHUB_REPO}/contents/${DATA_PATH}`;
+    const hdrs = () => ({
+      'Authorization': 'Bearer ' + token,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    });
+    const b64encode = str => {
+      const bytes = new TextEncoder().encode(str);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      return btoa(bin);
+    };
+    const b64decode = b64 => {
+      const bin = atob(b64.replace(/\s/g, ''));
+      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    };
+
     api = {
-      db,
-      async loadAll() {
-        const [m, b] = await Promise.all([
-          db.from('members').select('*').order('is_active', { ascending: false }).order('name'),
-          db.from('books').select('*').order('month_read', { ascending: false }),
-        ]);
-        if (m.error || b.error) throw (m.error || b.error);
-        return { members: m.data, books: b.data };
+      hasToken: () => !!token,
+      setToken(t) { token = t; try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {} },
+      clearToken() { token = null; try { localStorage.removeItem(TOKEN_KEY); } catch (e) {} },
+      async load() {
+        const r = await fetch(`${apiUrl}?ref=${BRANCH}`, { headers: hdrs() });
+        if (r.status === 401) throw Object.assign(new Error('That token was rejected (401). Check it and sign in again.'), { auth: true });
+        if (r.status === 404) throw new Error(`data.json not found in ${cfg.GITHUB_OWNER}/${cfg.GITHUB_REPO}@${BRANCH} — commit it first (see README).`);
+        if (!r.ok) throw new Error('GitHub: HTTP ' + r.status);
+        const j = await r.json();
+        sha = j.sha;
+        data = JSON.parse(b64decode(j.content));
       },
-      async ratingsFor(bookId) {
-        const { data, error } = await db.from('ratings').select('*').eq('book_id', bookId);
-        if (error) throw error; return data;
-      },
-      async addBook(rec)   { const { error } = await db.from('books').insert(rec); if (error) throw error; },
-      async updateBook(id, rec) { const { error } = await db.from('books').update(rec).eq('id', id); if (error) throw error; },
-      async deleteBook(id) { const { error } = await db.from('books').delete().eq('id', id); if (error) throw error; },
-      async addMember(name){ const { error } = await db.from('members').insert({ name }); if (error) throw error; },
-      async setActive(id, v){ const { error } = await db.from('members').update({ is_active: v }).eq('id', id); if (error) throw error; },
-      async renameMember(id, name) { const { error } = await db.from('members').update({ name }).eq('id', id); if (error) throw error; },
-      async upsert(bookId, memberId, stars) {
-        const { error } = await db.from('ratings').upsert(
-          { book_id: bookId, member_id: memberId, stars }, { onConflict: 'book_id,member_id' });
-        if (error) throw error;
-      },
-      async remove(bookId, memberId) {
-        const { error } = await db.from('ratings').delete().eq('book_id', bookId).eq('member_id', memberId);
-        if (error) throw error;
+      async save(message) {
+        const r = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: { ...hdrs(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message, branch: BRANCH, sha,
+            content: b64encode(JSON.stringify(data, null, 2) + '\n'),
+          }),
+        });
+        if (r.status === 409 || r.status === 422) {
+          await api.load();
+          throw new Error('data.json changed underneath us (edited elsewhere?). Reloaded fresh — please redo that last change.');
+        }
+        if (!r.ok) throw new Error('GitHub save failed: HTTP ' + r.status);
+        const j = await r.json();
+        sha = j.content.sha;
       },
     };
   } else {
-    // ---------- preview backend: placeholder data, in-memory ----------
+    // ---------- preview backend ----------
     $('mockbanner').hidden = false;
-    let uid = 0; const nid = () => 'x' + (++uid);
-    const members = ['Dan','Priya','Marcus','Elena','Sofia','James','Aisha','Tom','Grace','Leo','Nina','Omar']
-      .map(n => ({ id: nid(), name: n, is_active: true }));
-    members[7].is_active = false; // one inactive, for the full picture
-    const books = [
-      { id: nid(), title: 'James', author: 'Percival Everett', month_read: '2026-09-01', goodreads_url: '', cover_url: '' },
-      { id: nid(), title: 'The Covenant of Water', author: 'Abraham Verghese', month_read: '2026-08-01', goodreads_url: '', cover_url: '' },
-      { id: nid(), title: 'Sea of Tranquility', author: 'Emily St. John Mandel', month_read: '2026-07-01', goodreads_url: '', cover_url: '' },
-    ];
-    const ratings = [];
-    books.forEach((b, bi) => members.forEach((m, mi) => {
+    const mid = n => 'm' + n;
+    data = {
+      members: ['Dan','Priya','Marcus','Elena','Sofia','James','Aisha','Tom','Grace','Leo','Nina','Omar']
+        .map((n, i) => ({ id: mid(i), name: n, is_active: i !== 7 })),
+      books: [
+        { id: 'b1', title: 'James', author: 'Percival Everett', month_read: '2026-09-01', goodreads_url: '', cover_url: '' },
+        { id: 'b2', title: 'The Covenant of Water', author: 'Abraham Verghese', month_read: '2026-08-01', goodreads_url: '', cover_url: '' },
+        { id: 'b3', title: 'Sea of Tranquility', author: 'Emily St. John Mandel', month_read: '2026-07-01', goodreads_url: '', cover_url: '' },
+      ],
+      ratings: [],
+    };
+    data.books.forEach((b, bi) => data.members.forEach((m, mi) => {
       if ((bi * 7 + mi * 13 + 5) % 17 < 11)
-        ratings.push({ book_id: b.id, member_id: m.id, stars: 2 + ((bi + mi) % 7) / 2 });
+        data.ratings.push({ book_id: b.id, member_id: m.id, stars: 2 + ((bi + mi) % 7) / 2 });
     }));
     api = {
-      async loadAll() {
-        return {
-          members: members.slice().sort((a, z) => (z.is_active - a.is_active) || a.name.localeCompare(z.name)),
-          books: books.slice().sort((a, z) => z.month_read.localeCompare(a.month_read)),
-        };
-      },
-      async ratingsFor(bookId) { return ratings.filter(r => r.book_id === bookId); },
-      async addBook(rec)    { books.push({ id: nid(), ...rec }); },
-      async updateBook(id, rec) { Object.assign(books.find(b => b.id === id), rec); },
-      async deleteBook(id) {
-        books.splice(books.findIndex(b => b.id === id), 1);
-        for (let i = ratings.length - 1; i >= 0; i--) if (ratings[i].book_id === id) ratings.splice(i, 1);
-      },
-      async addMember(name) {
-        if (members.some(m => m.name === name)) throw new Error('duplicate key: that name already exists');
-        members.push({ id: nid(), name, is_active: true });
-      },
-      async setActive(id, v){ members.find(m => m.id === id).is_active = v; },
-      async renameMember(id, name) {
-        if (members.some(m => m.name === name && m.id !== id)) throw new Error('duplicate key: that name already exists');
-        members.find(m => m.id === id).name = name;
-      },
-      async upsert(bookId, memberId, stars) {
-        const r = ratings.find(r => r.book_id === bookId && r.member_id === memberId);
-        if (r) r.stars = stars; else ratings.push({ book_id: bookId, member_id: memberId, stars });
-      },
-      async remove(bookId, memberId) {
-        const i = ratings.findIndex(r => r.book_id === bookId && r.member_id === memberId);
-        if (i >= 0) ratings.splice(i, 1);
-      },
+      hasToken: () => true,
+      setToken() {}, clearToken() {},
+      async load() {},
+      async save() {},
     };
   }
 
-  // ============================================================
-  // UI
-  // ============================================================
-  let members = [], books = [], ratings = [];
+  // ---------- debounced commit queue ----------
+  let saveTimer = null, pendingMsgs = [];
+  function saveSoon(message) {
+    if (!configured) return; // preview: in-memory only
+    pendingMsgs.push(message);
+    setSaveState('saving', 'saving…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      const summary = pendingMsgs.length === 1 ? pendingMsgs[0] : `Update ratings (${pendingMsgs.length} changes)`;
+      pendingMsgs = [];
+      try { await api.save(summary); setSaveState('saved', 'saved ✓'); }
+      catch (e) { setSaveState('error', 'save failed'); msg('rate-msg', e.message, false); await refreshAll(); }
+    }, 1200);
+  }
+  async function saveNow(message) {
+    if (!configured) return;
+    setSaveState('saving', 'saving…');
+    try { await api.save(message); setSaveState('saved', 'saved ✓'); }
+    catch (e) { setSaveState('error', 'save failed'); throw e; }
+  }
+  function setSaveState(cls, text) {
+    const el = $('save-state'); el.className = cls; el.textContent = text;
+    if (cls === 'saved') setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 3000);
+  }
 
+  // ---------- derived views ----------
+  const membersSorted = () => data.members.slice()
+    .sort((a, z) => (z.is_active === true) - (a.is_active === true) || a.name.localeCompare(z.name));
+  const booksSorted = () => data.books.slice()
+    .sort((a, z) => z.month_read.localeCompare(a.month_read));
+
+  // ---------- auth flow ----------
   async function refreshAuthUI() {
-    if (!configured) { $('admin').classList.remove('hidden'); $('signed-in-as').textContent = 'Preview mode'; $('signout').classList.add('hidden'); await loadAll(); return; }
-    const { data: { session } } = await api.db.auth.getSession();
-    $('login-panel').classList.toggle('hidden', !!session);
-    $('admin').classList.toggle('hidden', !session);
-    if (session) { $('signed-in-as').textContent = 'Signed in as ' + session.user.email; await loadAll(); }
+    if (!configured) {
+      $('admin').classList.remove('hidden');
+      $('signed-in-as').textContent = 'Preview mode';
+      $('signout').classList.add('hidden');
+      refreshAll(); return;
+    }
+    if (!api.hasToken()) { $('login-panel').classList.remove('hidden'); $('admin').classList.add('hidden'); return; }
+    try { await api.load(); }
+    catch (e) {
+      if (e.auth) api.clearToken();
+      $('login-panel').classList.remove('hidden'); $('admin').classList.add('hidden');
+      msg('login-msg', e.message, false); return;
+    }
+    $('login-panel').classList.add('hidden');
+    $('admin').classList.remove('hidden');
+    $('signed-in-as').textContent = `Writing to ${cfg.GITHUB_OWNER}/${cfg.GITHUB_REPO}`;
+    refreshAll();
   }
 
   $('login-form').addEventListener('submit', async e => {
     e.preventDefault();
-    const { error } = await api.db.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
-    if (error) return msg('login-msg', error.message, false);
+    api.setToken($('gh-token').value.trim());
+    $('gh-token').value = '';
     await refreshAuthUI();
   });
-  $('signout').addEventListener('click', async () => { await api.db.auth.signOut(); location.reload(); });
+  $('signout').addEventListener('click', () => { api.clearToken(); location.reload(); });
 
-  async function loadAll() {
-    try { ({ members, books } = await api.loadAll()); }
-    catch (e) { return msg('rate-msg', e.message, false); }
+  function refreshAll() {
     renderMembers();
     renderBookSelect();
     renderBookEditSelect();
-    await loadRatings();
+    renderRatingRows();
   }
 
   // ----- books (add / edit / delete) -----
   function renderBookEditSelect() {
     const sel = $('b-edit'); const prev = sel.value;
-    sel.innerHTML = '<option value="">➕ Add a new book</option>' + books.map(b =>
+    sel.innerHTML = '<option value="">➕ Add a new book</option>' + booksSorted().map(b =>
       `<option value="${b.id}">✏️ ${escapeHtml(b.title)} — ${b.month_read.slice(0, 7)}</option>`).join('');
-    if (prev && books.some(b => b.id === prev)) sel.value = prev;
+    if (prev && data.books.some(b => b.id === prev)) sel.value = prev;
     syncBookForm();
   }
 
   function syncBookForm() {
-    const b = books.find(x => x.id === $('b-edit').value);
+    const b = data.books.find(x => x.id === $('b-edit').value);
     $('b-title').value     = b ? b.title : '';
     $('b-author').value    = b ? b.author : '';
     $('b-month').value     = b ? b.month_read.slice(0, 7) : '';
@@ -355,38 +403,44 @@
       goodreads_url: $('b-goodreads').value.trim() || null,
       cover_url: $('b-cover').value.trim() || null,
     };
-    try {
-      if (editingId) await api.updateBook(editingId, rec);
-      else await api.addBook(rec);
-    } catch (err) { return msg('book-msg', err.message, false); }
+    if (editingId) Object.assign(data.books.find(b => b.id === editingId), rec);
+    else data.books.push({ id: uid(), ...rec });
+    try { await saveNow(editingId ? `Edit book: ${rec.title}` : `Add book: ${rec.title}`); }
+    catch (err) { return msg('book-msg', err.message, false); }
     msg('book-msg', editingId ? 'Saved ✓' : 'Book added ✓', true);
     if (!editingId) e.target.reset();
-    await loadAll();
+    refreshAll();
   });
 
   $('b-delete').addEventListener('click', async () => {
-    const b = books.find(x => x.id === $('b-edit').value);
+    const b = data.books.find(x => x.id === $('b-edit').value);
     if (!b) return;
-    if (!confirm(`Delete "${b.title}" and all of its ratings? This can't be undone.`)) return;
-    try { await api.deleteBook(b.id); } catch (err) { return msg('book-msg', err.message, false); }
+    if (!confirm(`Delete "${b.title}" and all of its ratings? This can't be undone (well — it's git, so technically it can).`)) return;
+    data.books = data.books.filter(x => x.id !== b.id);
+    data.ratings = data.ratings.filter(r => r.book_id !== b.id);
+    try { await saveNow(`Delete book: ${b.title}`); }
+    catch (err) { return msg('book-msg', err.message, false); }
     $('b-edit').value = '';
     msg('book-msg', 'Book deleted', true);
-    await loadAll();
+    refreshAll();
   });
 
   // ----- members -----
   $('member-form').addEventListener('submit', async e => {
     e.preventDefault();
-    try { await api.addMember($('m-name').value.trim()); }
+    const name = $('m-name').value.trim();
+    if (data.members.some(m => m.name === name)) return msg('member-msg', 'That name already exists.', false);
+    data.members.push({ id: uid(), name, is_active: true });
+    try { await saveNow(`Add member: ${name}`); }
     catch (err) { return msg('member-msg', err.message, false); }
     msg('member-msg', 'Member added ✓', true);
     e.target.reset();
-    await loadAll();
+    refreshAll();
   });
 
   function renderMembers() {
     $('memberlist').innerHTML = '';
-    for (const m of members) {
+    for (const m of membersSorted()) {
       const chip = document.createElement('div');
       chip.className = 'chip' + (m.is_active ? '' : ' inactive');
       chip.innerHTML = `<span>${escapeHtml(m.name)}</span>`;
@@ -395,17 +449,21 @@
       rename.onclick = async () => {
         const name = prompt(`Rename "${m.name}" to:`, m.name);
         if (!name || !name.trim() || name.trim() === m.name) return;
-        try { await api.renameMember(m.id, name.trim()); }
-        catch (err) { return msg('member-msg', err.message, false); }
+        if (data.members.some(x => x.name === name.trim() && x.id !== m.id)) return msg('member-msg', 'That name already exists.', false);
+        const old = m.name; m.name = name.trim();
+        try { await saveNow(`Rename member: ${old} → ${m.name}`); }
+        catch (err) { m.name = old; return msg('member-msg', err.message, false); }
         msg('member-msg', 'Renamed ✓ (their ratings follow the name)', true);
-        await loadAll();
+        refreshAll();
       };
       chip.appendChild(rename);
       const toggle = document.createElement('button');
       toggle.textContent = m.is_active ? 'deactivate' : 'activate';
       toggle.onclick = async () => {
-        try { await api.setActive(m.id, !m.is_active); } catch (err) { return msg('member-msg', err.message, false); }
-        await loadAll();
+        m.is_active = !m.is_active;
+        try { await saveNow(`${m.is_active ? 'Activate' : 'Deactivate'} member: ${m.name}`); }
+        catch (err) { m.is_active = !m.is_active; return msg('member-msg', err.message, false); }
+        refreshAll();
       };
       chip.appendChild(toggle);
       $('memberlist').appendChild(chip);
@@ -415,26 +473,20 @@
   // ----- ratings -----
   function renderBookSelect() {
     const sel = $('r-book'); const prev = sel.value;
-    sel.innerHTML = books.map(b =>
+    sel.innerHTML = booksSorted().map(b =>
       `<option value="${b.id}">${escapeHtml(b.title)} — ${b.month_read.slice(0, 7)}</option>`).join('');
-    if (prev && books.some(b => b.id === prev)) sel.value = prev;
+    if (prev && data.books.some(b => b.id === prev)) sel.value = prev;
   }
-  $('r-book').addEventListener('change', loadRatings);
-
-  async function loadRatings() {
-    const bookId = $('r-book').value;
-    if (!bookId) { $('rate-rows').innerHTML = '<div class="hint">Add a book first.</div>'; return; }
-    try { ratings = await api.ratingsFor(bookId); }
-    catch (e) { return msg('rate-msg', e.message, false); }
-    renderRatingRows();
-  }
+  $('r-book').addEventListener('change', renderRatingRows);
 
   function renderRatingRows() {
     const bookId = $('r-book').value;
     const wrapEl = $('rate-rows');
+    if (!bookId) { wrapEl.innerHTML = '<div class="hint">Add a book first.</div>'; return; }
+    const book = data.books.find(b => b.id === bookId);
     wrapEl.innerHTML = '';
-    for (const m of members) {
-      const existing = ratings.find(r => r.member_id === m.id);
+    for (const m of membersSorted()) {
+      const existing = data.ratings.find(r => r.book_id === bookId && r.member_id === m.id);
       const stars = existing ? Number(existing.stars) : 0;
 
       const row = document.createElement('div');
@@ -443,8 +495,7 @@
         <div class="rate-name">${escapeHtml(m.name)} ${m.is_active ? '' : '<span class="inactive">(inactive)</span>'}</div>
         <div class="starpick"></div>
         <div class="rate-val">${stars ? stars.toFixed(1) : '—'}</div>
-        <button class="ghost" title="Clear rating" ${existing ? '' : 'disabled'}>✕</button>
-        <span class="saved-dot"></span>`;
+        <button class="ghost" title="Clear rating" ${existing ? '' : 'disabled'}>✕</button>`;
 
       const pick = row.querySelector('.starpick');
       for (let i = 1; i <= 5; i++) {
@@ -452,28 +503,28 @@
         s.textContent = '★';
         if (stars >= i) s.className = 'full';
         else if (stars >= i - 0.5) s.className = 'half';
-        // left half of a star = half rating, right half = whole
         s.onclick = e => {
           const rect = s.getBoundingClientRect();
           const half = (e.clientX - rect.left) < rect.width / 2;
-          save(m.id, half ? i - 0.5 : i, row);
+          setRating(m, half ? i - 0.5 : i);
         };
         pick.appendChild(s);
       }
-      row.querySelector('button').onclick = () => clearRating(m.id);
+      row.querySelector('button').onclick = () => clearRating(m);
       wrapEl.appendChild(row);
     }
 
-    async function save(memberId, stars, row) {
-      const dot = row.querySelector('.saved-dot'); dot.textContent = '…';
-      try { await api.upsert(bookId, memberId, stars); }
-      catch (err) { dot.textContent = ''; return msg('rate-msg', err.message, false); }
-      await loadRatings();
+    function setRating(m, stars) {
+      const existing = data.ratings.find(r => r.book_id === bookId && r.member_id === m.id);
+      if (existing) existing.stars = stars;
+      else data.ratings.push({ book_id: bookId, member_id: m.id, stars });
+      saveSoon(`Rate "${book.title}": ${m.name} → ${stars}`);
+      renderRatingRows();
     }
-    async function clearRating(memberId) {
-      try { await api.remove(bookId, memberId); }
-      catch (err) { return msg('rate-msg', err.message, false); }
-      await loadRatings();
+    function clearRating(m) {
+      data.ratings = data.ratings.filter(r => !(r.book_id === bookId && r.member_id === m.id));
+      saveSoon(`Clear rating on "${book.title}" for ${m.name}`);
+      renderRatingRows();
     }
   }
 

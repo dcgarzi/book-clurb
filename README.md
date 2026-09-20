@@ -1,61 +1,41 @@
-# 📚 Book Club Ratings
+# 📖 The Cultured Peoples of San Francisco Book Clurb
 
-A static site (GitHub Pages) backed by Supabase. Members browse past books and everyone's star ratings; only the admin (you) can write.
+A static site on GitHub Pages where the GitHub repo itself is the database. Members browse books, everyone's star ratings, and recommendations; only the admin (you) can write.
 
-## Architecture
+## Architecture (v2 — post-Supabase)
 
 ```
-GitHub Pages (static)                    Supabase
-┌─────────────────────┐                 ┌──────────────────────────┐
-│ index.html (public) │──anon key──────▶│ RLS: SELECT for everyone │
-│ admin.html (you)    │──email+password▶│ RLS: writes only for     │
-│ config.js           │                 │      authenticated users │
-└─────────────────────┘                 │ (signups disabled → the  │
-                                        │  only auth user is you)  │
-                                        └──────────────────────────┘
+GitHub repo
+├── index.html    ← public site (reads data.json + published Google Sheet)
+├── admin.html    ← writer's desk (writes data.json as commits, via your token)
+├── data.json     ← THE DATABASE: members, books, ratings
+└── config.js     ← repo coordinates + recommendation links (public-safe)
+
+Recommendations: Google Form → Google Sheet → "Publish to web" CSV → index.html
 ```
 
-**Why no member logins:** members never write, and all names/ratings are visible to everyone by design (leaderboard style) — so the public page needs no auth at all. Security lives entirely in Postgres Row Level Security: the anon key can only `SELECT`. Only you hold the keys, via `admin.html`.
+**Why no backend at all:** ~20 readers, one writer, a handful of writes a month. The public site fetches `data.json` from its own host (fast, free, unpausable). Your admin page edits that file through GitHub's Contents API — every save is a commit, so the entire rating history is version-controlled and recoverable. Security model: writes require your GitHub personal access token, which only you hold, entered on admin.html and stored only in your browser. Members can't write anything; there's nothing to hack but GitHub itself.
 
-**Placeholder mode:** until `config.js` exists with real Supabase values, `index.html` automatically renders built-in placeholder data (12 books, 12 members, ~65% participation) with a banner saying so — open the file in a browser to evaluate the design. Once `config.js` is filled in, it switches to live data; the mock block can then be deleted or left alone.
+**Trade-off to know:** after a save, GitHub Pages redeploys, so the public site reflects changes in ~30–60 seconds (the admin page sees them instantly). Fine for a monthly cadence.
 
-**Schema** (see `schema.sql`):
+## Setup
 
-| table   | columns                                                        |
-|---------|----------------------------------------------------------------|
-| members | id, name (unique), is_active                                   |
-| books   | id, title, author, cover_url, goodreads_url, month_read (date) |
-| ratings | id, book_id, member_id, stars (0.5–5.0 in half steps), unique (book_id, member_id) |
-
-## Setup (one time, ~10 minutes)
-
-### 1. Supabase
-
-1. Create a project at [supabase.com](https://supabase.com) (free tier is plenty for this scale).
-2. **SQL Editor** → paste the contents of `schema.sql` → Run.
-3. **Authentication → Sign In / Up**: turn **off** "Allow new users to sign up". This is what makes "authenticated = admin" safe.
-4. **Authentication → Users → Add user**: create yourself with your email + a strong password (use "Auto confirm user"). This is your admin login.
-5. **Project Settings → API**: copy the Project URL and the `anon` `public` key.
-
-### 2. This repo
-
-1. Copy `config.example.js` → `config.js` and paste in the URL and anon key. (The anon key is public by design — committing it is fine.)
-2. Push to a GitHub repo.
-3. Repo **Settings → Pages** → Source: "Deploy from a branch" → `main`, `/ (root)` → Save.
-4. Site appears at `https://<you>.github.io/<repo>/`. The admin page is at `.../admin.html`.
-
-### 3. (Recommended) Lock auth to your domain
-
-In Supabase **Authentication → URL Configuration**, set the Site URL to your GitHub Pages URL.
+1. **data.json** — the database file, committed to the repo root. Migrating from Supabase: run `migrate.sql` in the Supabase SQL Editor, copy the single cell it returns, and paste it into a new `data.json` (GitHub → Add file → Create new file).
+2. **config.js** — set `GITHUB_OWNER` and `GITHUB_REPO` to this repo's coordinates (see `config.example.js`). Add the three `RECS_*` links when the Google Form exists.
+3. **Personal access token** (your admin key): github.com → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate. Repository access: *Only select repositories* → this repo. Permissions: **Contents: Read and write**. Nothing else. Set a long expiration; when it lapses, generate a new one and sign in again.
+4. **GitHub Pages**: repo Settings → Pages → Deploy from branch → `main`, root. Site at `https://<you>.github.io/<repo>/`, admin at `/admin.html`.
 
 ## Day-to-day (monthly)
 
-1. Open `admin.html`, sign in.
-2. **Add a book**: title, author, month, Goodreads link, cover URL.
-   - Easy covers: `https://covers.openlibrary.org/b/isbn/<ISBN>-M.jpg`
-   - Or right-click → "Copy image address" on the Goodreads cover.
-3. **Ratings**: pick the book, click stars next to each member. Saves instantly; ✕ clears. Clicking your current star again toggles a half star (e.g. 4 → 3.5).
-4. **Members**: add once; mark inactive when people drift off (their old ratings stay).
+1. Open `/admin.html` — sign in with your token if asked (it's remembered per browser).
+2. **Books**: add this month's pick (title, author, month, Goodreads link, cover URL — Open Library covers: `https://covers.openlibrary.org/b/isbn/<ISBN>-M.jpg`). The same panel edits or deletes existing books.
+3. **Ratings**: pick the book, click stars (right half = whole, left half = half star, ✕ clears). Changes batch into a commit a moment after you stop clicking — watch for "saved ✓".
+4. **Members**: add, rename, or deactivate (deactivating hides them and their ratings from the public site; nothing is deleted).
+5. **Recommendations**: edit the Google Sheet directly — it's the admin surface for that tab.
+
+## Recommendations flow
+
+Google Form (members submit) → linked responses Sheet → File → Share → **Publish to web** → that tab as **CSV** → paste the link as `RECS_CSV_URL` in config.js. `RECS_FORM_URL` (form share link) powers the "Recommend a book" button; `RECS_SHEET_URL` (normal sheet URL) gives admin.html its edit links. Anything in the published tab appears on the site within a few minutes — deleting a row is the moderation tool.
 
 ## Credits
 
@@ -63,7 +43,7 @@ The 5-star holographic cell effect adapts the "Holographic card (Pokemon style)"
 
 ## Notes & future ideas
 
-- ~20 members × 12 books/yr is trivially inside Supabase free tier limits.
-- The admin page is "hidden" only by URL — that's fine, because without your password it can't write anything. RLS is the real lock.
-- Whole-star-only preference? Change the `check` constraint in `schema.sql` and skip the half-star toggle.
-- Possible later additions: a "current book" banner, sort/filter by rating, a member leaderboard (most books rated), CSV export.
+- Every data change is a commit: `git log -- data.json` is your audit trail, and reverting a mistake is reverting a commit.
+- The admin page is "hidden" only by URL — that's fine; without your token it can't write anything.
+- Legacy files from the Supabase era (`schema.sql`, `seed.sql`, `migrate.sql`) can be deleted from the repo once the migration is done and verified.
+- Possible later additions: a "current book" banner, a member leaderboard, CSV export, custom domain.

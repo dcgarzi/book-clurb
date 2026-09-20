@@ -271,7 +271,7 @@
 <hr class="tabs-rule">
 
 <div class="mockbanner" id="mockbanner" hidden>
-  Showing <b>placeholder data</b> — connect config.js to Supabase to go live.
+  Showing <b>placeholder data</b> — publish a data.json next to this page to go live.
 </div>
 
 <main>
@@ -282,7 +282,6 @@
 
 <footer>Ratings out of 5 · Averages count only members who rated that book · Deeper lavender = higher rating · A perfect 5 goes holographic ✨</footer>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="config.js" onerror="void 0"></script>
 <script>
 // ============================================================
@@ -326,23 +325,26 @@ const MOCK = (() => {
   const wrap = document.getElementById('tablewrap');
   let viewMode = 'books';
 
-  // ---------- load: Supabase if configured, otherwise placeholder ----------
+  // ---------- load: data.json from this repo, otherwise placeholder ----------
   let books, members, ratings;
   const cfg = window.BOOKCLUB_CONFIG || {};
-  const configured = cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY
-    && !cfg.SUPABASE_URL.includes('YOUR-PROJECT-REF');
+  let live = false;
 
-  if (configured) {
-    const db = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-    const [b, m, r] = await Promise.all([
-      db.from('books').select('id, title, author, cover_url, goodreads_url, month_read'),
-      db.from('members').select('id, name, is_active').order('name'),
-      db.from('ratings').select('book_id, stars, members ( id, name )'),
-    ]);
-    const err = b.error || m.error || r.error;
-    if (err) { statusEl.textContent = 'Could not load data: ' + err.message; return; }
-    books = b.data; members = m.data; ratings = r.data;
-  } else {
+  try {
+    const res = await fetch('data.json', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      const byId = new Map(data.members.map(m => [m.id, m]));
+      books = data.books;
+      members = data.members;
+      ratings = data.ratings
+        .map(r => ({ book_id: r.book_id, stars: r.stars, members: byId.get(r.member_id) }))
+        .filter(r => r.members);
+      live = true;
+    }
+  } catch (e) { /* no data.json — fall through to placeholder */ }
+
+  if (!live) {
     ({ books, members, ratings } = MOCK);
     document.getElementById('mockbanner').hidden = false;
   }
