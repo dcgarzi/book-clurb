@@ -1,0 +1,293 @@
+[
+  {
+    "data_json": {
+      "members": [
+        {
+          "id": "d9a5a353-96bb-4165-8ce2-078b927069f1",
+          "name": "Ben",
+          "is_active": true
+        },
+        {
+          "id": "8f5165ff-f196-42b6-a4cb-b0eee6ac5860",
+          "name": "Chris",
+          "is_active": true
+        },
+        {
+          "id": "6e718e4b-85f9-4049-a790-7dfed8dbc4c8",
+          "name": "Dan",
+          "is_active": false
+        },
+        {
+          "id": "fa9df29e-f702-4546-901a-70fe54284c73",
+          "name": "Dan G",
+          "is_active": true
+        },
+        {
+          "id": "01773887-e4ab-4ba6-af73-8d8975f44189",
+          "name": "Daniel K",
+          "is_active": true
+        },
+        {
+          "id": "a0018095-464a-4090-afd2-5ba781ce1e4b",
+          "name": "Dru",
+          "is_active": true
+        },
+        {
+          "id": "8bb4d2c9-5c1b-4660-85ef-bbf2c2e907b5",
+          "name": "Evan",
+          "is_active": true
+        },
+        {
+          "id": "707a8478-6662-4521-a98c-38ad56c928d1",
+          "name": "Jacques",
+          "is_active": true
+        },
+        {
+          "id": "54b03788-1eda-4dff-bf10-f5c1afe5af51",
+          "name": "Javaun",
+          "is_active": true
+        },
+        {
+          "id": "f64765b5-3edc-4918-bb98-f82c37f2a759",
+          "name": "Joel",
+          "is_active": true
+        },
+        {
+          "id": "c4d4cb7d-4ba3-4fc8-8746-2da1902f6024",
+          "name": "Josue",
+          "is_active": true
+        },
+        {
+          "id": "f7a39200-d758-434a-9258-81b66bbbe6c0",
+          "name": "Matt",
+          "is_active": true
+        },
+        {
+          "id": "45a7f147-bc23-49c2-ab57-d1d772330fab",
+          "name": "Miguel",
+          "is_active": true
+        },
+        {
+          "id": "bc66d259-3365-42e5-942a-e22493d3834c",
+          "name": "Nigel",
+          "is_active": true
+        },
+        {
+          "id": "f3822c2d-2098-47d5-9969-fb6ba9ca5b38",
+          "name": "Paul",
+          "is_active": true
+        },
+        {
+          "id": "3fac14c7-5178-4956-932a-815be6c96faf",
+          "name": "Peter",
+          "is_active": true
+        },
+        {
+          "id": "2dce4d17-5aff-4da2-a24c-cd8ed67be6ca",
+          "name": "Philip",
+          "is_active": true
+        },
+        {
+          "id": "c5a6441c-dbd6-48d3-9496-7398b33b4eb0",
+          "name": "Robby",
+          "is_active": true
+        },
+        {
+          "id": "01efdd5a-b057-4046-b092-18ba0ac86eb1",
+          "name": "Thibaut",
+          "is_active": true
+        }
+      ],
+      "books": [
+        {
+          "id": "3caeb617-8ad6-444c-ad88-f0e9d6987e89",
+          "title": "The Lilac People",
+          "author": "Milo Todd",
+          "month_read": "2026-04-01",
+          "goodreads_url": "https://www.goodreads.com/search?q=The+Lilac+People+Milo+Todd",
+          "cover_url": "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1722483278i/217045791.jpg"
+        },
+        {
+          "id": "dcd1adcc-ba9b-423c-af3c-73e0c8c3abfa",
+          "title": "A Psalm for the Wild-Built",
+          "author": "Becky Chambers",
+          "month_read": "2026-05-01",
+          "goodreads_url": "https://www.goodreads.com/search?q=A+Psalm+for+the+Wild-Built+Becky+Chambers",
+          "cover_url": "https://covers.openlibrary.org/b/isbn/9781250236210-M.jpg"
+        },
+        {
+          "id": "3f982a86-7d81-4ca7-923a-446f4d69926c",
+          "title": "Season of the Witch",
+          "author": "David Talbot",
+          "month_read": "2026-06-01",
+          "goodreads_url": "https://www.goodreads.com/search?q=Season+of+the+Witch+David+Talbot",
+          "cover_url": "https://covers.openlibrary.org/b/isbn/9781439108246-M.jpg"
+        },
+        {
+          "id": "9ad69e53-53f7-4a35-a5c9-dab6a68484e0",
+          "title": "John of John",
+          "author": "Douglas Stuart",
+          "month_read": "2026-07-01",
+          "goodreads_url": "https://www.goodreads.com/search?q=John+of+John+Douglas+Stuart",
+          "cover_url": "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1777987045i/235260861.jpg"
+        },
+        {
+          "id": "6405930d-30c0-4808-9305-67bf2976af9a",
+          "title": "China Mountain Zhang",
+          "author": "Maureen F. McHugh",
+          "month_read": "2026-08-01",
+          "goodreads_url": "https://www.goodreads.com/search?q=China+Mountain+Zhang+Maureen+McHugh",
+          "cover_url": "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1346669090i/836964.jpg"
+        },
+        {
+          "id": "5c464353-c2ba-4df8-897f-7b4d83fcb5e1",
+          "title": "Martyr!",
+          "author": "Kaveh Akbar",
+          "month_read": "2026-09-01",
+          "goodreads_url": "https://www.goodreads.com/search?q=Martyr+Kaveh+Akbar",
+          "cover_url": "https://covers.openlibrary.org/b/isbn/9780593537619-M.jpg"
+        },
+        {
+          "id": "64def109-f139-4c95-a3a0-b188f3f14e9b",
+          "title": "The Song of Achilles",
+          "author": "Madeline Miller",
+          "month_read": "2026-10-01",
+          "goodreads_url": "https://www.goodreads.com/search?q=The+Song+of+Achilles+Madeline+Miller",
+          "cover_url": "https://covers.openlibrary.org/b/isbn/9780062060624-M.jpg"
+        }
+      ],
+      "ratings": [
+        {
+          "book_id": "3caeb617-8ad6-444c-ad88-f0e9d6987e89",
+          "member_id": "f64765b5-3edc-4918-bb98-f82c37f2a759",
+          "stars": 4
+        },
+        {
+          "book_id": "3caeb617-8ad6-444c-ad88-f0e9d6987e89",
+          "member_id": "f7a39200-d758-434a-9258-81b66bbbe6c0",
+          "stars": 4
+        },
+        {
+          "book_id": "3caeb617-8ad6-444c-ad88-f0e9d6987e89",
+          "member_id": "c4d4cb7d-4ba3-4fc8-8746-2da1902f6024",
+          "stars": 4
+        },
+        {
+          "book_id": "3caeb617-8ad6-444c-ad88-f0e9d6987e89",
+          "member_id": "6e718e4b-85f9-4049-a790-7dfed8dbc4c8",
+          "stars": 5
+        },
+        {
+          "book_id": "dcd1adcc-ba9b-423c-af3c-73e0c8c3abfa",
+          "member_id": "f7a39200-d758-434a-9258-81b66bbbe6c0",
+          "stars": 4
+        },
+        {
+          "book_id": "dcd1adcc-ba9b-423c-af3c-73e0c8c3abfa",
+          "member_id": "6e718e4b-85f9-4049-a790-7dfed8dbc4c8",
+          "stars": 4
+        },
+        {
+          "book_id": "dcd1adcc-ba9b-423c-af3c-73e0c8c3abfa",
+          "member_id": "c5a6441c-dbd6-48d3-9496-7398b33b4eb0",
+          "stars": 3.5
+        },
+        {
+          "book_id": "dcd1adcc-ba9b-423c-af3c-73e0c8c3abfa",
+          "member_id": "f64765b5-3edc-4918-bb98-f82c37f2a759",
+          "stars": 3.5
+        },
+        {
+          "book_id": "dcd1adcc-ba9b-423c-af3c-73e0c8c3abfa",
+          "member_id": "c4d4cb7d-4ba3-4fc8-8746-2da1902f6024",
+          "stars": 4
+        },
+        {
+          "book_id": "3f982a86-7d81-4ca7-923a-446f4d69926c",
+          "member_id": "f7a39200-d758-434a-9258-81b66bbbe6c0",
+          "stars": 2.5
+        },
+        {
+          "book_id": "3f982a86-7d81-4ca7-923a-446f4d69926c",
+          "member_id": "707a8478-6662-4521-a98c-38ad56c928d1",
+          "stars": 3
+        },
+        {
+          "book_id": "3f982a86-7d81-4ca7-923a-446f4d69926c",
+          "member_id": "c4d4cb7d-4ba3-4fc8-8746-2da1902f6024",
+          "stars": 3
+        },
+        {
+          "book_id": "3f982a86-7d81-4ca7-923a-446f4d69926c",
+          "member_id": "6e718e4b-85f9-4049-a790-7dfed8dbc4c8",
+          "stars": 2.5
+        },
+        {
+          "book_id": "3f982a86-7d81-4ca7-923a-446f4d69926c",
+          "member_id": "c5a6441c-dbd6-48d3-9496-7398b33b4eb0",
+          "stars": 3
+        },
+        {
+          "book_id": "9ad69e53-53f7-4a35-a5c9-dab6a68484e0",
+          "member_id": "6e718e4b-85f9-4049-a790-7dfed8dbc4c8",
+          "stars": 5
+        },
+        {
+          "book_id": "9ad69e53-53f7-4a35-a5c9-dab6a68484e0",
+          "member_id": "f7a39200-d758-434a-9258-81b66bbbe6c0",
+          "stars": 4
+        },
+        {
+          "book_id": "9ad69e53-53f7-4a35-a5c9-dab6a68484e0",
+          "member_id": "f64765b5-3edc-4918-bb98-f82c37f2a759",
+          "stars": 4
+        },
+        {
+          "book_id": "6405930d-30c0-4808-9305-67bf2976af9a",
+          "member_id": "6e718e4b-85f9-4049-a790-7dfed8dbc4c8",
+          "stars": 4.5
+        },
+        {
+          "book_id": "6405930d-30c0-4808-9305-67bf2976af9a",
+          "member_id": "c5a6441c-dbd6-48d3-9496-7398b33b4eb0",
+          "stars": 3.5
+        },
+        {
+          "book_id": "6405930d-30c0-4808-9305-67bf2976af9a",
+          "member_id": "f64765b5-3edc-4918-bb98-f82c37f2a759",
+          "stars": 4.5
+        },
+        {
+          "book_id": "6405930d-30c0-4808-9305-67bf2976af9a",
+          "member_id": "707a8478-6662-4521-a98c-38ad56c928d1",
+          "stars": 3
+        },
+        {
+          "book_id": "3caeb617-8ad6-444c-ad88-f0e9d6987e89",
+          "member_id": "fa9df29e-f702-4546-901a-70fe54284c73",
+          "stars": 5
+        },
+        {
+          "book_id": "dcd1adcc-ba9b-423c-af3c-73e0c8c3abfa",
+          "member_id": "fa9df29e-f702-4546-901a-70fe54284c73",
+          "stars": 4
+        },
+        {
+          "book_id": "3f982a86-7d81-4ca7-923a-446f4d69926c",
+          "member_id": "fa9df29e-f702-4546-901a-70fe54284c73",
+          "stars": 2.5
+        },
+        {
+          "book_id": "9ad69e53-53f7-4a35-a5c9-dab6a68484e0",
+          "member_id": "fa9df29e-f702-4546-901a-70fe54284c73",
+          "stars": 5
+        },
+        {
+          "book_id": "6405930d-30c0-4808-9305-67bf2976af9a",
+          "member_id": "fa9df29e-f702-4546-901a-70fe54284c73",
+          "stars": 4.5
+        }
+      ]
+    }
+  }
+]
