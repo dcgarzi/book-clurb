@@ -1,7 +1,7 @@
 window.BOOKCLUB_CONFIG = {
   // --- Where the data lives (this same GitHub repo) ---
-  GITHUB_OWNER: "your-github-username",
-  GITHUB_REPO: "your-repo-name",
+  GITHUB_OWNER: "dcgarzi",
+  GITHUB_REPO: "book-clurb",
   GITHUB_BRANCH: "main",
 
   // --- Recommendations (optional; all three come from Google) ---
