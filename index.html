@@ -597,17 +597,32 @@ const MOCK = (() => {
   }
 
   async function coverFor(title, author) {
-    const key = 'clurb_cov:' + (title + '|' + author).toLowerCase();
-    try { const c = localStorage.getItem(key); if (c !== null) return c || null; } catch (e) {}
-    let url = null;
-    try {
-      const q = encodeURIComponent(`intitle:"${title}" inauthor:"${author}"`);
-      const j = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&fields=items(volumeInfo(imageLinks))`)
-        .then(r => r.ok ? r.json() : null);
-      url = j && j.items && j.items[0]?.volumeInfo?.imageLinks?.thumbnail || null;
-      if (url) url = url.replace(/^http:/, 'https:');
-      try { localStorage.setItem(key, url || ''); } catch (e) {}
-    } catch (e) { /* offline or blocked: placeholder stands, retry next visit */ }
+    // cache HITS only — a miss is retried on later visits, so covers
+    // for newly published books appear once the catalogs have them
+    const key = 'clurb_cov2:' + (title + '|' + author).toLowerCase();
+    try { const c = localStorage.getItem(key); if (c) return c; } catch (e) {}
+
+    const gbooks = async q => {
+      try {
+        const j = await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=1&fields=items(volumeInfo(imageLinks))&q='
+          + encodeURIComponent(q)).then(r => r.ok ? r.json() : null);
+        const u = j && j.items && j.items[0]?.volumeInfo?.imageLinks?.thumbnail;
+        return u ? u.replace(/^http:/, 'https:') : null;
+      } catch (e) { return null; }
+    };
+    const openlib = async () => {
+      try {
+        const j = await fetch('https://openlibrary.org/search.json?limit=1&fields=cover_i&title='
+          + encodeURIComponent(title) + '&author=' + encodeURIComponent(author)).then(r => r.ok ? r.json() : null);
+        const id = j && j.docs && j.docs[0]?.cover_i;
+        return id ? `https://covers.openlibrary.org/b/id/${id}-M.jpg` : null;
+      } catch (e) { return null; }
+    };
+
+    const url = await gbooks(`intitle:"${title}" inauthor:"${author}"`)  // exact
+      || await gbooks(`${title} ${author}`)                              // loose
+      || await openlib();                                                // second catalog
+    if (url) { try { localStorage.setItem(key, url); } catch (e) {} }
     return url;
   }
 
