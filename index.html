@@ -197,9 +197,17 @@
 
   /* ---------- recommendations ---------- */
   .recs { max-width: 680px; margin: 0 auto; }
-  .rec { padding: 24px 0; border-bottom: 1px solid var(--hairline); }
+  .rec { padding: 24px 0; border-bottom: 1px solid var(--hairline); display: flex; gap: 18px; }
   .rec:last-child { border-bottom: none; }
+  .rec-cover {
+    width: 56px; height: 84px; flex: none; object-fit: cover;
+    background: var(--hairline); box-shadow: 0 2px 5px rgba(0,0,0,.25);
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .rec-body { min-width: 0; }
   .rec-title { font-family: var(--serif); font-size: 20px; font-weight: 700; line-height: 1.25; }
+  .rec-title a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--faint); }
+  .rec-title a:hover { border-bottom-color: var(--ink); }
   .rec-author { font-family: var(--serif); font-style: italic; color: var(--muted); font-size: 15px; margin-top: 1px; }
   .rec-pitch { font-family: var(--serif); font-size: 15.5px; line-height: 1.55; margin-top: 10px; }
   .rec-by {
@@ -249,6 +257,11 @@
     td.stat b { font-size: 16px; }
     td.range { font-size: 13px; min-width: 150px; }
     td.rank { width: 30px; }
+
+    .rec { gap: 12px; }
+    .rec-cover { width: 46px; height: 69px; }
+    .rec-title { font-size: 17px; }
+    .rec-pitch { font-size: 14.5px; }
 
     footer { font-size: 11.5px; margin-top: 32px; }
   }
@@ -558,15 +571,44 @@ const MOCK = (() => {
       }
     }
     statusEl.style.display = 'none';
-    const list = recs.length ? recs.map(r => `
+    const grUrl = r => 'https://www.goodreads.com/search?q=' + encodeURIComponent(r.title + ' ' + r.author);
+    const list = recs.length ? recs.map((r, i) => `
       <article class="rec">
-        <div class="rec-title">${esc(r.title)}</div>
-        ${r.author ? `<div class="rec-author">${esc(r.author)}</div>` : ''}
-        ${r.pitch ? `<div class="rec-pitch">${esc(r.pitch)}</div>` : ''}
-        <div class="rec-by">${esc(r.name || 'anonymous')}${r.date ? ' · ' + r.date : ''}</div>
+        <div class="rec-cover" data-rec="${i}">📖</div>
+        <div class="rec-body">
+          <div class="rec-title"><a href="${esc(grUrl(r))}" target="_blank" rel="noopener">${esc(r.title)}</a></div>
+          ${r.author ? `<div class="rec-author">${esc(r.author)}</div>` : ''}
+          ${r.pitch ? `<div class="rec-pitch">${esc(r.pitch)}</div>` : ''}
+          <div class="rec-by">${esc(r.name || 'anonymous')}${r.date ? ' · ' + r.date : ''}</div>
+        </div>
       </article>`).join('')
       : `<div class="recs-empty">${cfg.RECS_CSV_URL ? 'No recommendations yet — be the first!' : 'Recommendations aren\'t wired up yet (set RECS_CSV_URL in config.js).'}</div>`;
     wrap.innerHTML = `<div class="recs">${formCta}${list}</div>`;
+
+    // auto-covers: look each book up once (Google Books, no key),
+    // cache per browser, fall back to the 📖 placeholder
+    recs.forEach(async (r, i) => {
+      const url = await coverFor(r.title, r.author);
+      const slot = wrap.querySelector(`.rec-cover[data-rec="${i}"]`);
+      if (url && slot) slot.outerHTML =
+        `<img class="rec-cover" src="${esc(url)}" alt="" loading="lazy"
+           onerror="this.outerHTML='<div class=&quot;rec-cover&quot;>📖</div>'">`;
+    });
+  }
+
+  async function coverFor(title, author) {
+    const key = 'clurb_cov:' + (title + '|' + author).toLowerCase();
+    try { const c = localStorage.getItem(key); if (c !== null) return c || null; } catch (e) {}
+    let url = null;
+    try {
+      const q = encodeURIComponent(`intitle:"${title}" inauthor:"${author}"`);
+      const j = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&fields=items(volumeInfo(imageLinks))`)
+        .then(r => r.ok ? r.json() : null);
+      url = j && j.items && j.items[0]?.volumeInfo?.imageLinks?.thumbnail || null;
+      if (url) url = url.replace(/^http:/, 'https:');
+      try { localStorage.setItem(key, url || ''); } catch (e) {}
+    } catch (e) { /* offline or blocked: placeholder stands, retry next visit */ }
+    return url;
   }
 
   // ---------- view switching ----------
