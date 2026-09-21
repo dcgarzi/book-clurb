@@ -121,6 +121,7 @@
     min-width: 40px; padding: 14px 4px; font-variant-numeric: tabular-nums;
   }
   td.cell.empty { color: var(--faint); }
+  .cstar { display: block; font-size: 9px; line-height: 1; margin-bottom: 3px; opacity: .7; }
 
   /* ✨ 5-star: HOLOGRAPHIC CELL
      Technique #3 ("Pokemon-style holographic card") from
@@ -454,9 +455,9 @@ const MOCK = (() => {
           let h = 0; for (const ch of b.id + m.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
           const dur = 12 + (h % 8);              // 12–19s
           const delay = -((h >> 6) % (dur * 10)) / 10; // start mid-cycle
-          return `<td class="cell holo" style="--t:${dur}s;--d:${delay}s" title="${esc(m.name)}: a perfect 5 ✨"><b class="v">${label}</b></td>`;
+          return `<td class="cell holo" style="--t:${dur}s;--d:${delay}s" title="${esc(m.name)}: a perfect 5 ✨"><b class="v"><span class="cstar">★</span>${label}</b></td>`;
         }
-        return `<td class="cell" style="${heat(s)}" title="${esc(m.name)}: ${s}/5">${label}</td>`;
+        return `<td class="cell" style="${heat(s)}" title="${esc(m.name)}: ${s}/5"><span class="cstar">★</span>${label}</td>`;
       }).join('');
       const rank = rankOf.get(b.id);
       const medal = b.avg !== null && rank < 3 ? `<span class="medal">${MEDALS[rank]}</span>` : '';
@@ -585,31 +586,36 @@ const MOCK = (() => {
       : `<div class="recs-empty">${cfg.RECS_CSV_URL ? 'No recommendations yet — be the first!' : 'Recommendations aren\'t wired up yet (set RECS_CSV_URL in config.js).'}</div>`;
     wrap.innerHTML = `<div class="recs">${formCta}${list}</div>`;
 
-    // auto-covers: look each book up once (Google Books, no key),
-    // cache per browser, fall back to the 📖 placeholder
-    recs.forEach(async (r, i) => {
-      const url = await coverFor(r.title, r.author);
-      const slot = wrap.querySelector(`.rec-cover[data-rec="${i}"]`);
-      if (url && slot) slot.outerHTML =
-        `<img class="rec-cover" src="${esc(url)}" alt="" loading="lazy"
-           onerror="this.outerHTML='<div class=&quot;rec-cover&quot;>📖</div>'">`;
-    });
+    // auto-covers: sequential lookups (parallel bursts trip rate
+    // limits), cached per browser, 📖 placeholder on a miss
+    (async () => {
+      for (let i = 0; i < recs.length; i++) {
+        const url = await coverFor(recs[i].title, recs[i].author);
+        const slot = wrap.querySelector(`.rec-cover[data-rec="${i}"]`);
+        if (url && slot) slot.outerHTML =
+          `<img class="rec-cover" src="${esc(url)}" alt="" loading="lazy"
+             onerror="this.outerHTML='<div class=&quot;rec-cover&quot;>📖</div>'">`;
+      }
+    })();
   }
 
-  async function coverFor(title, author) {
-    // cache HITS only — a miss is retried on later visits, so covers
-    // for newly published books appear once the catalogs have them
-    const key = 'clurb_cov2:' + (title + '|' + author).toLowerCase();
-    try { const c = localStorage.getItem(key); if (c) return c; } catch (e) {}
+  // Google Books' keyless quota is tiny and per-IP, so Open Library
+  // leads and Google is a guarded fallback that backs off on 429.
+  let gbooksTripped = false;
 
-    const gbooks = async q => {
-      try {
-        const j = await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=1&fields=items(volumeInfo(imageLinks))&q='
-          + encodeURIComponent(q)).then(r => r.ok ? r.json() : null);
-        const u = j && j.items && j.items[0]?.volumeInfo?.imageLinks?.thumbnail;
-        return u ? u.replace(/^http:/, 'https:') : null;
-      } catch (e) { return null; }
-    };
+  async function coverFor(title, author) {
+    const key = 'clurb_cov3:' + (title + '|' + author).toLowerCase();
+    // cache: hits forever; misses for 24h (so new books appear later
+    // without re-hammering the APIs on every reload meanwhile)
+    try {
+      const c = localStorage.getItem(key);
+      if (c) {
+        if (c.startsWith('miss:')) {
+          if (Date.now() - Number(c.slice(5)) < 864e5) return null;
+        } else return c;
+      }
+    } catch (e) {}
+
     const openlib = async () => {
       try {
         const j = await fetch('https://openlibrary.org/search.json?limit=1&fields=cover_i&title='
@@ -618,11 +624,27 @@ const MOCK = (() => {
         return id ? `https://covers.openlibrary.org/b/id/${id}-M.jpg` : null;
       } catch (e) { return null; }
     };
+    const gbooks = async q => {
+      if (gbooksTripped) return null;
+      try {
+        const r = await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=1&fields=items(volumeInfo(imageLinks))&q='
+          + encodeURIComponent(q));
+        if (r.status === 429) { gbooksTripped = true; return null; }
+        if (!r.ok) return null;
+        const j = await r.json();
+        const u = j && j.items && j.items[0]?.volumeInfo?.imageLinks?.thumbnail;
+        return u ? u.replace(/^http:/, 'https:') : null;
+      } catch (e) { return null; }
+    };
 
-    const url = await gbooks(`intitle:"${title}" inauthor:"${author}"`)  // exact
-      || await gbooks(`${title} ${author}`)                              // loose
-      || await openlib();                                                // second catalog
-    if (url) { try { localStorage.setItem(key, url); } catch (e) {} }
+    const url = await openlib()
+      || await gbooks(`intitle:"${title}" inauthor:"${author}"`)
+      || await gbooks(`${title} ${author}`);
+    try {
+      if (url) localStorage.setItem(key, url);
+      else if (!gbooksTripped) localStorage.setItem(key, 'miss:' + Date.now());
+      // (rate-limited runs cache nothing — full retry next visit)
+    } catch (e) {}
     return url;
   }
 
