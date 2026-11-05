@@ -362,6 +362,11 @@
       "book_id": "64def109-f139-4c95-a3a0-b188f3f14e9b",
       "member_id": "f7a39200-d758-434a-9258-81b66bbbe6c0",
       "stars": 3.5
+    },
+    {
+      "book_id": "64def109-f139-4c95-a3a0-b188f3f14e9b",
+      "member_id": "c5a6441c-dbd6-48d3-9496-7398b33b4eb0",
+      "stars": 3.5
     }
   ]
 }
