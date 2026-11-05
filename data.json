@@ -94,6 +94,11 @@
       "id": "01efdd5a-b057-4046-b092-18ba0ac86eb1",
       "name": "Thibaut",
       "is_active": true
+    },
+    {
+      "id": "fa030644-8bd9-4fb3-97ac-ca29f13b5fc4",
+      "name": "Brandon",
+      "is_active": true
     }
   ],
   "books": [
